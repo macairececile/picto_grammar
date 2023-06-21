@@ -1,18 +1,23 @@
 # python file to create the grammar and generate translation in pictos
+import math
+
 import pandas as pd
 import spacy
 from text_to_num import text2num
 from print_sentences_from_grammar import *
+import re
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 
 phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bêêê', 'beurk',
-                         'ben',
-                         'bing', 'bon', 'boum', 'broum', 'cataclop', 'clap clap', 'coa coa', 'cocorico', 'coin coin',
+                         'ben', 'beh',
+                         'bing', 'boum', 'broum', 'cataclop', 'clap clap', 'coa coa', 'cocorico', 'coin coin',
                          'crac',
                          'croa croa', 'cuicui', 'ding', 'ding deng dong', 'ding dong', 'dring', 'hé', 'hé ben',
                          'eh bien', 'euh',
                          'flic flac', 'flip flop', 'frou frou', 'glouglou', 'glou glou', 'groin groin', 'grr', 'hé',
-                         'hep',
-                         'hi han', 'hip hip hip hourra', 'houla', 'hourra', 'hum', 'mêêê', 'meuh', 'miam', 'miam miam',
+                         'hep', 'hein',
+                         'hi han', 'hip hip hip hourra', 'hop', 'houla', 'hourra', 'hum', 'mêêê', 'meuh', 'miam',
+                         'miam miam',
                          'miaou',
                          'oh', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan', 'patatras', 'pchhh', 'pchit',
                          'pff', 'pif-paf', 'pin pon', 'pioupiou', 'plouf', 'pof', 'pouet', 'pouet pouet', 'pouf',
@@ -25,6 +30,11 @@ special_characters = ['<', '>', '/', ',', '*', '"']
 
 futur_anterieur = ["aurai", "auras", "aura", 'aurons', "aurez", "auront", "serai", "seras", "sera", "serons", "serez",
                    "seront"]
+
+words_to_replace = [["Monsieur", "monsieur"], ["Madame", "madame"], ["mademoiselle", "madame"], ["ça", "cela"],
+                    ["nan", "non"], ["madame", "madame"], ["belle", "belle"]]
+pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela"], ["t'", "tu"], ["on", "nous"],
+                       ["m'", "me"]]
 
 words_prefix = [
     ['dés', [24753]],
@@ -54,11 +64,13 @@ words_prefix = [
 
 
 # -------------------------------- #
-# -------- READ VOC FILES -------- #
+# -------- READ ELEMENTS -------- #
 # -------------------------------- #
 def read_initial_voc_file(file_arasaac):
     df = pd.read_csv(file_arasaac)
-    return df[['idpicto', 'lemma', 'lemma_plural']]
+    df.loc[:, 'lemma_2'] = df['lemma'].apply(lambda a: ' '.join(str(a).split('_')))
+    df.loc[:, 'plurals_2'] = df['lemma_plural'].apply(lambda a: ' '.join(str(a).split('_')))
+    return df[['idpicto', 'lemma_2', 'plurals_2']]
 
 
 def read_dicoPicto(dicoPicto_file):
@@ -72,7 +84,20 @@ def get_picto_dicoPicto(lemma, dico_picto):
 
 
 def get_picto_voc(lemma, voc1):
-    return list(set([int(a) for a in voc1.loc[voc1['lemma'] == lemma]["idpicto"].tolist()]))
+    return list(set([int(a) for a in voc1.loc[voc1['lemma_2'] == lemma]["idpicto"].tolist()]))
+
+
+def get_picto_voc_plural(lemma, voc1):
+    return list(set([int(a) for a in voc1.loc[voc1['plurals_2'] == lemma]["idpicto"].tolist()]))
+
+
+# -------------------------------- #
+# -------- READ DATA FILES ------- #
+# -------------------------------- #
+def read_sentences(csv_file):
+    df = pd.read_csv(csv_file, sep='\t')
+    df2 = df.dropna()
+    return df2["text"].tolist()
 
 
 # ---------------------------- #
@@ -90,10 +115,12 @@ class Word():
     """
 
     def __init__(self, token, lemma, pos, morph, dep, ent_type=None, tag=None, wn=None, id_picto=None, prefix=False,
-                 plur=False):
+                 plur=False, pron=False, ner=''):
         """
         Constructor method
         """
+        if id_picto is None:
+            id_picto = []
         self.token = token
         self.lemma = lemma
         self.pos = pos
@@ -106,6 +133,8 @@ class Word():
         self.verb_handle = False
         self.prefix = prefix
         self.plur = plur
+        self.pron = pron
+        self.ner = ner
 
         # Named Entity
         if (ent_type):
@@ -152,6 +181,10 @@ class Word():
 
         result += f"PLUR: {self.plur} "
 
+        result += f"PRONOMINAL: {self.pron} "
+
+        result += f"NER: {self.ner} "
+
         return result
 
     def add_wn(self, wn):
@@ -180,23 +213,43 @@ def process_with_spacy(text, spacy_model):
 
 
 def process_text(text):
-    # remove onomatopées
-    for o in phatiques_onomatopees:
-        if o in text:
-            text = text.replace(o, '')
-    # remove special characters
+    # unique_words = dict.fromkeys(text.split())
+    # text_unique = ' '.join(unique_words)
+    pattern = r"/([^/]+)/"
+    matches = re.findall(pattern, text)
+    for match in matches:
+        text = text.replace("/" + match + "/", match.split(",")[0])
+    text = text.replace("ouais", "oui")
+
     for c in special_characters:
         if c in text:
             text = text.replace(c, '')
+
     if not text.strip():
-        return True
+        return None
     else:
         return text
+
+
+def load_ner_model():
+    tokenizer = AutoTokenizer.from_pretrained("Jean-Baptiste/camembert-ner")
+    model = AutoModelForTokenClassification.from_pretrained("Jean-Baptiste/camembert-ner")
+    ner_model = pipeline('ner', model=model, tokenizer=tokenizer, aggregation_strategy="simple")
+    return ner_model
 
 
 # ------------------ #
 # ------ RULES ----- #
 # ------------------ #
+def handle_onomatopoeia_and_others(text_spacy):
+    for w in text_spacy:
+        for t in words_to_replace:
+            if w.lemma[0] == t[0]:
+                w.lemma = [t[1]]
+        if w.token in phatiques_onomatopees:
+            w.to_picto = False
+
+
 def imperative_sentence(text_spacy):
     # si le premier mot de la phrase est un verbe - phrase à l'impératif
     if text_spacy[0].pos == 'VERB':
@@ -292,7 +345,11 @@ def pronominale(text_spacy):
                     w.to_picto = False
                     pron = True
             if w.pos == "VERB" and pron == True:
-                w.lemma.insert(0, 'se ' + w.lemma[0])
+                if w.lemma[0].startswith(("a", "e", "i", "o", "u", "y")):
+                    w.lemma.insert(0, "s'" + w.lemma[0])
+                else:
+                    w.lemma.insert(0, "se " + w.lemma[0])
+                w.pron = True
                 pron = False
 
 
@@ -302,6 +359,17 @@ def nombre(text_spacy):
             if w.morph.get("Number"):
                 if w.morph.get("Number")[0] == "Plur":
                     w.plur = True
+
+
+def pronouns(text_spacy):
+    for w in text_spacy:
+        if w.pos == "PRON":
+            if w.token in [item[0] for item in pronouns_to_replace]:
+                for p in pronouns_to_replace:
+                    if w.token == p[0]:
+                        w.lemma = [p[1]]
+            else:
+                w.lemma = [w.token]
 
 
 def indic_temp(text_spacy):
@@ -324,13 +392,29 @@ def indic_temp(text_spacy):
 
 
 def neg(text_spacy):
-    for w in text_spacy:
+    neg_position = []
+    for i, w in enumerate(text_spacy):
         if 'ne' in w.lemma and w.pos == "ADV":
             w.to_picto = False
         if 'y' in w.lemma:
             w.to_picto = False
         if "pas" in w.lemma and w.pos == "ADV":
             w.add_picto([5526])
+            j = i
+            while j + 1 < len(text_spacy):
+                if text_spacy[j + 1].pos in ["VERB", "AUX"]:
+                    pos = j + 1
+                    if neg_position:
+                        for el in neg_position:
+                            if el[0] == i:
+                                el[1] = pos
+                    else:
+                        neg_position.append([i, pos])
+                    j += 1
+                else:
+                    break
+    for el in neg_position:
+        text_spacy[el[0]], text_spacy[el[1]] = text_spacy[el[1]], text_spacy[el[0]]
 
 
 def prefix(text_spacy):
@@ -367,12 +451,28 @@ def search_picto_for_poly(text_spacy, lemmas, voc1, dico_picto):
                 id_picto = get_picto_voc(l[0], voc1)
                 if id_picto:
                     add_polylexical_picto(text_spacy, l[1], id_picto)
+                else:
+                    id_picto = get_picto_voc_plural(l[0], voc1)
+                    if id_picto:
+                        add_polylexical_picto(text_spacy, l[1], id_picto)
+
+def name_entities(text_spacy, ner_model):
+    i = 0
+    ner_res = ner_model(' '.join([w.token for w in text_spacy]))
+    output_ner = [[item['entity_group'], item['word'], item['start'], item['end']] for item in ner_res]
+    for w in text_spacy:
+        for n in output_ner:
+            if i >= n[2]+1 and  i+len(w.token) <= n[3]and n[0] in ["LOC", "ORG", "PER"]:
+                w.ner = n[0]
+        i = i+len(w.token)+1
+
 
 
 def polylexical(text_spacy, voc1, dico_picto):
     lemmas_with_prefix = [w.lemma[0] for w in text_spacy if w.to_picto == True]
     lemmas_no_prefix = []
     lemmas_plur = []
+    tokens = []
     for w in text_spacy:
         if w.to_picto == True:
             if len(w.lemma) > 1:
@@ -381,101 +481,142 @@ def polylexical(text_spacy, voc1, dico_picto):
                 lemmas_no_prefix.append(w.lemma[0])
             if w.plur:
                 lemmas_plur.append(w.token)
-    lemmas_with_prefix_search = [[lemmas_with_prefix[i] + " " + lemmas_with_prefix[i + 1], i + 1] for i in
+            tokens.append(w.token)
+    lemmas_with_prefix_search = [[lemmas_with_prefix[i] + (" " if "'" not in lemmas_with_prefix[i] else "") + lemmas_with_prefix[i + 1], i + 1] for i in
                                  range(len(lemmas_with_prefix) - 1)]
-    lemmas_plur_search = [[lemmas_plur[i] + " " + lemmas_plur[i + 1], i + 1] for i in
+    lemmas_plur_search = [[lemmas_plur[i] + (" " if "'" not in lemmas_plur[i] else "") + lemmas_plur[i + 1], i + 1] for i in
                           range(len(lemmas_plur) - 1)]
-    lemmas_no_prefix_search = [[lemmas_no_prefix[i] + " " + lemmas_no_prefix[i + 1], i + 1] for i in
+    lemmas_no_prefix_search = [[lemmas_no_prefix[i] + (" " if "'" not in lemmas_no_prefix[i] else "") + lemmas_no_prefix[i + 1], i + 1] for i in
                                range(len(lemmas_no_prefix) - 1)]
+    tokens_search = [[tokens[i] + (" " if "'" not in tokens[i] else "") + tokens[i + 1], i + 1] for i in range(len(tokens) - 1)]
     search_picto_for_poly(text_spacy, lemmas_with_prefix_search, voc1, dico_picto)
     search_picto_for_poly(text_spacy, lemmas_plur_search, voc1, dico_picto)
     search_picto_for_poly(text_spacy, lemmas_no_prefix_search, voc1, dico_picto)
+    search_picto_for_poly(text_spacy, tokens_search, voc1, dico_picto)
 
 
-def mapping_text_to_picto(text_after_rules, voc1, dico_picto):
+def mapping_text_to_picto(text_after_rules, voc1, dico_picto, words_not_in_dico_picto):
+    # modifier cette horreur de code
     for i, w in enumerate(text_after_rules):
-        if w.to_picto and w.picto is None:
+        id_picto = []
+        if w.pron and w.to_picto and not w.picto:
+            id_picto = get_picto_dicoPicto(w.lemma[0], dico_picto)
+            if not id_picto:
+                words_not_in_dico_picto.append(w.lemma[0])
+                id_picto = get_picto_voc(w.lemma[0], voc1)
+                if not id_picto:
+                    lemma = w.lemma[1]
+                    id_picto = get_picto_dicoPicto(lemma, dico_picto)
+                    if not id_picto:
+                        words_not_in_dico_picto.append(lemma)
+                        id_picto = get_picto_voc(lemma, voc1)
+        if w.to_picto and not w.picto and not id_picto:
             if w.plur:
                 lemma = w.token
                 id_picto = get_picto_dicoPicto(lemma, dico_picto)
                 if not id_picto:
                     id_picto = get_picto_voc(lemma, voc1)
+                    words_not_in_dico_picto.append(lemma)
                     if not id_picto:
                         lemma = w.lemma[1] if w.prefix else w.lemma[0]
                         id_picto = get_picto_dicoPicto(lemma, dico_picto)
                         if not id_picto:
+                            words_not_in_dico_picto.append(lemma)
                             id_picto = get_picto_voc(lemma, voc1)
-            else:
-                lemma = w.lemma[1] if w.prefix else w.lemma[0]
+            if w.prefix:
+                lemma = w.lemma[1]
                 id_picto = get_picto_dicoPicto(lemma, dico_picto)
                 if not id_picto:
                     id_picto = get_picto_voc(lemma, voc1)
-            if id_picto:
-                w.add_picto(id_picto)
-                if w.prefix:
+                    words_not_in_dico_picto.append(lemma)
+                    if not id_picto:
+                        lemma = w.lemma[0]
+                        id_picto = get_picto_dicoPicto(lemma, dico_picto)
+                        if id_picto:
+                            text_after_rules[i - 1].to_picto = True
+                        else:
+                            id_picto = get_picto_voc(lemma, voc1)
+                            words_not_in_dico_picto.append(lemma)
+                            if id_picto:
+                                text_after_rules[i - 1].to_picto = True
+                    else:
+                        text_after_rules[i - 1].to_picto = False
+                else:
                     text_after_rules[i - 1].to_picto = False
             else:
+                lemma = w.lemma[0]
+                id_picto = get_picto_dicoPicto(lemma, dico_picto)
+                if not id_picto:
+                    words_not_in_dico_picto.append(lemma)
+                    id_picto = get_picto_voc(lemma, voc1)
+        if id_picto:
+            w.add_picto(id_picto)
+        else:
+            if not w.picto:
+                if w.ner != '':
+                    if w.ner == 'LOC':
+                        w.add_picto([2704])
+                    if w.ner == 'ORG':
+                        w.add_picto([12333])
+                    if w.ner == 'PER':
+                        w.add_picto([36935])
+                else:
+                    w.add_picto([404])
                 if w.prefix:
                     text_after_rules[i - 1].to_picto = False
-                w.add_picto([404])
+
+
+def get_words_no_picto(texts_grammar):
+    word_no_picto = []
+    for t in texts_grammar:
+        if t is not None:
+            for w in t:
+                if w.to_picto and w.picto == [404]:
+                    word_no_picto.extend(w.lemma)
+    return list(set(word_no_picto))
 
 
 # ------------------------- #
 # -------- GRAMMAR -------- #
 # ------------------------- #
-def grammar(sentence, spacy_model):
-
+def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model):
     voc_magali = read_initial_voc_file("/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv")
     dicoPicto = read_dicoPicto("/data/macairec/PhD/Grammaire/dico/dicoPicto.csv")
 
     # apply rules
     s_process = process_text(sentence)
-    s_spacy = process_with_spacy(s_process, spacy_model)
-    imperative_sentence(s_spacy)
-    futur_tense(s_spacy)
-    past_tense(s_spacy)
-    pronominale(s_spacy)
-    nombre(s_spacy)
-    indic_temp(s_spacy)
-    neg(s_spacy)
-    prefix(s_spacy)
-    polylexical(s_spacy, voc_magali, dicoPicto)
+    if s_process is not None:
+        s_spacy = process_with_spacy(s_process, spacy_model)
+        if len(s_spacy) < 11:
+            handle_onomatopoeia_and_others(s_spacy)
+            imperative_sentence(s_spacy)
+            futur_tense(s_spacy)
+            past_tense(s_spacy)
+            pronominale(s_spacy)
+            nombre(s_spacy)
+            pronouns(s_spacy)
+            indic_temp(s_spacy)
+            neg(s_spacy)
+            polylexical(s_spacy, voc_magali, dicoPicto)
+            prefix(s_spacy)
+            name_entities(s_spacy, ner_model)
 
-    # mapping to ic_picto
-    mapping_text_to_picto(s_spacy, voc_magali, dicoPicto)
-    print("-----------------")
-    for w in s_spacy:
-        print(w.__str__())
-    return s_spacy
+            # mapping to ic_picto
+            mapping_text_to_picto(s_spacy, voc_magali, dicoPicto, words_not_in_dico_picto)
+            print("-----------------")
+            for w in s_spacy:
+                print(w.__str__())
+
+            return s_spacy
 
 
 if __name__ == '__main__':
-    spacy_model = load_model("fr_core_news_md")
-    sentences = ["écoute moi", "mange ton diner", "ferme la porte", "lève toi tôt", "donne moi cette clé", "quelle chanson tu préfères", "quel est ton nom", "une fois qu'il eut terminé", "il a été très sympa", "je l'avais fait", "je serai venu dans pas longtemps", "nous nous sommes perdus", "elles sont gentilles", "les chiens sont bruyants", "il va à la chasse", "le mardi vingt cinq juin deux mille", "elle n'y va pas", "tu ne veux pas dormir", "il n'est pas trop tard pour dormir", "La communication interpersonnelle est essentielle pour une relation saine.", "j'ai faim", "quel bel arc-en-ciel", "il n'y a pas"]
-    phrases = [
-        "Écoute moi",
-        "Faites attention où vous marchez",
-        "Quel est ton nom",
-        "Quel beau pantalon",
-        "L’étudiant a révisé",
-        "Je suis en stage",
-        "Je n'ai pas révisé je le ferai",
-        "Elle part demain et reviens mercredi",
-        "J'ai faim",
-        "Quel bel arc-en-ciel",
-        "Il se douche",
-        "Je ne veux pas me réveiller",
-        "Tu y es allé quand",
-        "Nous sommes allés au marché",
-        "Elle est gentille",
-        "Il est au cinéma avec un ami",
-        "Elles sont gentilles",
-        "Vous pouvez venir demain",
-        "Mardi 27 juin 2023",
-        "Elle n'y va pas",
-        "Tu ne veux pas dormir",
-        "Je souhaite recommencer",
-        "Ceci est illogique"
-    ]
-    s_rules = [grammar(s, spacy_model) for s in phrases]
-    print_pictograms(phrases, s_rules)
+    spacy_model = load_model("fr_dep_news_trf")
+    ner_model = load_ner_model()
+    # 1985
+    sentences = read_sentences("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_2.csv")
+    words_not_in_dico_picto = []
+    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model) for s in sentences]
+    print("\nWords with no picto : ", get_words_no_picto(s_rules))
+    print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
+    print_pictograms(sentences, s_rules)

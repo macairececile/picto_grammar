@@ -1,7 +1,6 @@
 import xml.etree.ElementTree as ET
 
 import sox
-from pydub import AudioSegment
 from os import listdir
 from os.path import join, isfile
 import pandas as pd
@@ -98,20 +97,20 @@ def create_clips_from_timecode(df, save_dir):
 def create_corpus(folder_tcof, folder_clapi, save_clips):
     data = []
     trs_files_tcof = get_files_from_directory(folder_tcof)
-    orfeo_files_clapi = get_files_from_directory(folder_clapi)
+    # orfeo_files_clapi = get_files_from_directory(folder_clapi)
     for f in trs_files_tcof:
         if "Blocus" in f:
             process_tcof_file_blocus(folder_tcof + f, data)
         else:
-            process_tcof_file(folder_tcof + f, data)
-    for f in orfeo_files_clapi:
-        process_clapi_file(folder_clapi + f, data)
+            process_tcof_file_blocus(folder_tcof + f, data)
+    # for f in orfeo_files_clapi:
+    #     process_clapi_file(folder_clapi + f, data)
 
     df = pd.DataFrame(data, columns=['file', 'text', 'start', 'end'])
     create_clips_from_timecode(df, save_clips)
     df = df[df.clips != '']
-    df[['clips', 'text']].to_csv("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar.csv", sep='\t', index=False)
+    df[['clips', 'text']].to_csv("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_2.csv", sep='\t', index=False)
 
 
-create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof/", "/data/macairec/PhD/Grammaire/corpus/data/clapi/",
+create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof2/", "",
               "/data/macairec/PhD/Grammaire/corpus/clips/")

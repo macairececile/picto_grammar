@@ -1,5 +1,6 @@
 from grammar import *
 
+
 def create_html_file(html_file):
     header = "<!doctype html>" \
              "<html lang=\"fr\"><head>" \
@@ -18,66 +19,46 @@ def create_html_file(html_file):
 
 
 def write_header_info_per_sentence(html_file, utt_name):
-    html_file.write("<div class=\"container px-4\">")
+    html_file.write("<div class=\"container\">")
     html_file.write("<div class=\"row\">")
-    html_file.write("<div class=\"col-8\"><div class=\"p-3\">")
+    html_file.write("<div class=\"col-12\"><div class=\"p-3\">")
     html_file.write(utt_name)
     html_file.write("</div></div></div></div>")
 
 
 def write_translations_per_sentence(html_file, translations):
-    for id_picto in translations:
-        if id_picto.to_picto:
-            html_file.write(
-                "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
-                "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
-                    id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
-                                                  "<figcaption class=\"figure-caption text-center\">" "</figcaption></figure>")
-            html_file.write("&nbsp;&nbsp;")
-
-
-# def write_bottom_info_per_sentence(html_file, ref, hyp, wsd, info_mot, picto_id_predicted):
-#     html_file.write("<div class=\"container px-4\">")
-#     html_file.write("<div class=\"row\">")
-#     html_file.write("<div class=\"col-2\"><div class=\"p-2\">Référence : </div></div>")
-#     html_file.write("<div class=\"col-10\"><div class=\"p-2\">" + ref + "</div></div>")
-#     html_file.write("<div class=\"col-2\"><div class=\"p-2\"> Hypothèse : </div></div>")
-#     html_file.write("<div class=\"col-10\"><div class=\"p-2\">" + hyp + "</div></div>")
-#     html_file.write("<div class=\"col-2\"><div class=\"p-2\">WSD : </div></div>")
-#     html_file.write("<div class=\"col-10\"><div class=\"p-2\">" + wsd + "</div></div>")
-#     html_file.write("</div></div>")
-#     html_file.write("<div class=\"container px-4\">")
-#     html_file.write("<table class=\"table table-hover\">"
-#                     "<thead class=\"table-success\">"
-#                     "<tr>"
-#                     "<th scope=\"col\">#</th>"
-#                     "<th scope=\"col\">Mot lemmatisé / sens wordnet à traduire</th>"
-#                     "<th scope=\"col\">ID lemma / ID wsd</th>"
-#                     "</tr>"
-#                     "</thead>"
-#                     "<tbody>"
-#                     )
-#     for i, lemma_wn in enumerate(info_mot):
-#         html_file.write("<tr>")
-#         html_file.write("<th scope=\"row\">" + str(i) + "</th>")
-#         if lemma_wn.wn and lemma_wn.lemma:
-#             html_file.write("<td>" + lemma_wn.lemma + ' / ' + lemma_wn.wn + "</td>")
-#         else:
-#             html_file.write("<td>" + lemma_wn.lemma + ' / ' + '-' + "</td>")
-#         html_file.write(
-#             "<td>" + str(picto_id_predicted[i][1]) + ' / ' + str(picto_id_predicted[i][0]) + "</td>")
-#         html_file.write("</td></tr>")
-#     html_file.write("</tbody></table>")
-#
-#     html_file.write("</div>")
+    if translations is not None:
+        for id_picto in translations:
+            if id_picto.to_picto:
+                if id_picto.picto == [404]:
+                    html_file.write(
+                        "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
+                        "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
+                            id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                                                          "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
+                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>Id picto : " + str(
+                            id_picto.picto) + "</figcaption></figure>")
+                else:
+                    html_file.write(
+                        "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
+                        "<img src=\"https://static.arasaac.org/pictograms/" + str(id_picto.picto[0]) + '/' + str(
+                            id_picto.picto[0]) + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                                                               "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
+                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>Id picto : " + str(
+                            id_picto.picto) + "</figcaption></figure>")
+                    # "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
+                    #     id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                    #                                   "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
+                    #     id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>Id picto : " + str(
+                    #     id_picto.picto) + "</figcaption></figure>")
+                html_file.write("&nbsp;&nbsp;")
 
 
 def print_pictograms(sentence, sentence_grammar):
-    html_file = '/data/macairec/PhD/Grammaire/scripts/test.html'
+    html_file = '/data/macairec/PhD/Grammaire/picto_grammar/scripts/corpus_grammar_pictos_2.html'
     html = create_html_file(html_file)
     html.write("<div class = \"container\">")
     for i, s in enumerate(sentence):
-
         html.write("<div class=\"shadow p-3 mb-5 bg-white rounded\">")
         write_header_info_per_sentence(html, s)
 
