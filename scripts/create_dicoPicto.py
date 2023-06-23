@@ -6,7 +6,7 @@ def read_initial_voc_file(file_arasaac):
 
 
 def read_dicoPicto(dicoPicto_file):
-    return pd.read_csv(dicoPicto_file, sep='\t')
+    return pd.read_csv(dicoPicto_file, sep=',')
 
 
 def parse_wn31_file(file):
@@ -32,6 +32,20 @@ def get_pos(synset):
     elif pos == 's':
         tag = 5
     return tag
+
+def get_pos_synset(tag):
+    pos = 0
+    if tag == 1:
+        pos = '-n'
+    elif tag == 2:
+        pos = '-v'
+    elif tag == 3:
+        pos = '-a'
+    elif tag == 4:
+        pos = '-r'
+    elif tag == 5:
+        pos = '-s'
+    return pos
 
 def get_sense_keys(wn_data, synsets):
     # '07769568-n'
