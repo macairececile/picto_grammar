@@ -50,7 +50,6 @@ def disambiguate(text, neural_disambiguator):
         :return disambiguate sentence
     """
     sentence = processing(text)
-    #
     neural_disambiguator.disambiguate_dynamic_sentence_batch(sentence, "wsd_test")
     sense_keys_words = []
     for word in sentence[0].get_words():

@@ -36,7 +36,8 @@ def write_translations_per_sentence(html_file, translations):
                         "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
                             id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
                                                           "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
-                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>Id picto : " + str(
+                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
+                            id_picto.wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
                 else:
                     html_file.write(
@@ -44,7 +45,8 @@ def write_translations_per_sentence(html_file, translations):
                         "<img src=\"https://static.arasaac.org/pictograms/" + str(id_picto.picto[0]) + '/' + str(
                             id_picto.picto[0]) + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
                                                                "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
-                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>Id picto : " + str(
+                            id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
+                            id_picto.wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
                     # "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
                     #     id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
@@ -54,8 +56,7 @@ def write_translations_per_sentence(html_file, translations):
                 html_file.write("&nbsp;&nbsp;")
 
 
-def print_pictograms(sentence, sentence_grammar):
-    html_file = '/data/macairec/PhD/Grammaire/picto_grammar/scripts/corpus_grammar_pictos_2.html'
+def print_pictograms(sentence, sentence_grammar, html_file):
     html = create_html_file(html_file)
     html.write("<div class = \"container\">")
     for i, s in enumerate(sentence):
