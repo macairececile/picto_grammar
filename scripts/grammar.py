@@ -248,7 +248,7 @@ def process_text(text):
     if not text.strip():
         return None
     else:
-        return text
+        return ' '.join(text.split())
 
 
 def load_ner_model():
@@ -571,17 +571,25 @@ def name_entities(text_spacy, ner_model):
                 text_spacy[pos_w_ner_next[-1]].to_picto = True
 
 
+def check_ner(w, voc1, dico_picto):
+    if w.ner != '' and w.to_picto:
+        id_picto = get_picto_dicoPicto(w.token, dico_picto)
+        if not id_picto:
+            id_picto = get_picto_voc(w.token, voc1)
+            if not id_picto:
+                if w.ner == 'LOC':
+                    w.add_picto([2704])
+                if w.ner == 'ORG':
+                    w.add_picto([12333])
+                if w.ner == 'PER':
+                    w.add_picto([36935])
+
+
 def mapping_text_to_picto(text_after_rules, voc1, dico_picto):
     # modifier cette horreur de code
     for i, w in enumerate(text_after_rules):
         id_picto = []
-        if w.ner != '' and w.to_picto:
-            if w.ner == 'LOC':
-                w.add_picto([2704])
-            if w.ner == 'ORG':
-                w.add_picto([12333])
-            if w.ner == 'PER':
-                w.add_picto([36935])
+        check_ner(w, voc1, dico_picto)
         if w.pron and w.to_picto and not w.picto:
             id_picto = get_picto_dicoPicto(w.lemma[0], dico_picto)
             if not id_picto:
@@ -718,7 +726,7 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
 
             # mapping to ic_picto
             mapping_text_to_picto(s_spacy, voc_magali, dicoPicto)
-            apply_wsd(wsd_model, s_spacy, voc_magali, dicoPicto, wn_data)
+            # apply_wsd(wsd_model, s_spacy, voc_magali, dicoPicto, wn_data)
             remove_consecutive_picto(s_spacy)
             print("-----------------")
             for w in s_spacy:
@@ -732,14 +740,14 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
 if __name__ == '__main__':
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
+    # wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
     # sentences = read_sentences("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_2.csv")
-    sentences = read_sentences(
-        "/home/getalp/macairec/Téléchargements/cv-corpus-13.0-2023-03-09-fr/cv-corpus-13.0-2023-03-09/fr/test.tsv")[
-                :800]
+    # sentences = read_sentences(
+    #     "/home/getalp/macairec/Téléchargements/cv-corpus-13.0-2023-03-09-fr/cv-corpus-13.0-2023-03-09/fr/test.tsv")[:1500]
+    sentences = ["je voyage en europe, à berlin, vienne, rome, et à madagascar"]
     words_not_in_dico_picto = []
-    html_file = '/data/macairec/PhD/Grammaire/picto_grammar/scripts/commonVoice_test_800.html'
-    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model) for s in sentences]
+    html_file = '/data/macairec/PhD/Grammaire/picto_grammar/scripts/test.html'
+    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, '') for s in sentences]
     print("\nWords with no picto : ", get_words_no_picto(s_rules))
     print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
     print_pictograms(sentences, s_rules, html_file)

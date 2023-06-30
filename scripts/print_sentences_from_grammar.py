@@ -30,6 +30,10 @@ def write_translations_per_sentence(html_file, translations):
     if translations is not None:
         for id_picto in translations:
             if id_picto.to_picto:
+                if id_picto.wsd != '':
+                    info_wsd = id_picto.wsd.split(";")[0]
+                else:
+                    info_wsd = id_picto.wsd
                 if id_picto.picto == [404]:
                     html_file.write(
                         "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
@@ -37,7 +41,7 @@ def write_translations_per_sentence(html_file, translations):
                             id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
                                                           "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
-                            id_picto.wsd) + "<br/>Id picto : " + str(
+                            info_wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
                 else:
                     html_file.write(
@@ -46,7 +50,7 @@ def write_translations_per_sentence(html_file, translations):
                             id_picto.picto[0]) + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
                                                                "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
-                            id_picto.wsd) + "<br/>Id picto : " + str(
+                            info_wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
                     # "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
                     #     id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
