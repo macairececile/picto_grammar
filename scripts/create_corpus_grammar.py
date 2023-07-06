@@ -4,14 +4,16 @@ import sox
 from os import listdir
 from os.path import join, isfile
 import pandas as pd
+import textgrid
 
 
 def get_files_from_directory(dir):
-    files = [f for f in listdir(dir) if isfile(join(dir, f)) if '.trs' in f or '.orfeo' in f]
+    files = [f for f in listdir(dir) if isfile(join(dir, f)) if
+             '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f]
     return files
 
 
-def process_tcof_file(trs_file, data):
+def process_trs_file(trs_file, data):
     # Charger le fichier XML
     tree = ET.parse(trs_file)
     root = tree.getroot()
@@ -24,9 +26,8 @@ def process_tcof_file(trs_file, data):
         if text != '':
             data.append({'file': trs_file, 'text': text, 'start': starttime, 'end': endtime})
 
+
 def process_tcof_file_blocus(trs_file, data):
-    # Analyse du XML
-    # Analyse du XML
     tree = ET.parse(trs_file)
     root = tree.getroot()
 
@@ -38,7 +39,7 @@ def process_tcof_file_blocus(trs_file, data):
             text = ' '.join(process_text_tcof(sync.tail).split())
             start = sync.attrib.get("time")
             if i == 0 and text != '' and i + 1 < num_syncs:
-                end = turn.findall("Sync")[i+1].attrib.get("time")
+                end = turn.findall("Sync")[i + 1].attrib.get("time")
                 data.append({'file': trs_file, 'text': text, 'start': start, 'end': end})
             elif i + 1 < num_syncs:
                 end = turn.findall("Sync")[i + 1].attrib.get("time")
@@ -47,9 +48,8 @@ def process_tcof_file_blocus(trs_file, data):
                 data.append({'file': trs_file, 'text': text, 'start': start, 'end': endtime})
 
 
-
 def process_text_tcof(text):
-    to_replace = ['+', '///', '- ', ' -', '***']
+    to_replace = ['+', '///', '- ', ' -', '***', '*', '=']
     to_replace_2 = ['(', ')']
     for i in to_replace:
         text = text.replace(i, " ")
@@ -58,7 +58,19 @@ def process_text_tcof(text):
     return text
 
 
-def process_clapi_file(clapi_file, data):
+def process_text_pfc(text):
+    sp_text = text.split(" ")
+    new_text = ''
+    for w in sp_text:
+        if '/' not in w and '(' not in w and '<' not in w:
+            if '>' in w:
+                new_text += w.split('>')[0] + ' '
+            else:
+                new_text += w + ' '
+    return new_text.strip()
+
+
+def process_orfeo_file(clapi_file, data):
     with open(clapi_file, 'r') as file:
         texte = None
         starttime = 0
@@ -74,15 +86,39 @@ def process_clapi_file(clapi_file, data):
                     starttime = colonnes[10]
 
 
+def process_cfpr_file(cfpr_file, data):
+    tg = textgrid.TextGrid.fromFile(cfpr_file)
+    for i in range(tg[0].__len__()):
+        if tg[0][i].mark != '_':
+            data.append({'file': cfpr_file, 'text': tg[0][i].mark, 'start': float(tg[0][i].minTime),
+                         'end': float(tg[0][i].maxTime)})
+
+
+def process_pfc_file(pfc_file, data):
+    tree = ET.parse(pfc_file)
+    root = tree.getroot()
+
+    for s_elem in root.iter('S'):
+        audio_elem = s_elem.find('AUDIO')
+        form_elem = s_elem.find('FORM[@kindOf="ortho"]')
+
+        if audio_elem is not None and form_elem is not None:
+            text = process_text_pfc(form_elem.text.strip())
+            data.append({'file': pfc_file, 'text': text, 'start': float(audio_elem.attrib['start']),
+                         'end': float(audio_elem.attrib['end'])})
+
+
 def create_clips_from_timecode(df, save_dir):
     name_clips = []
     for index, row in df.iterrows():
-        if 'clapi' in row['file']:
+        if 'orfeo' in row['file']:
             wav_file = row['file'][:-6] + '.wav'
+        elif 'TextGrid' in row['file']:
+            wav_file = row['file'][:-9] + '.wav'
         else:
             wav_file = row['file'][:-4] + '.wav'
         tfm = sox.Transformer()
-        if row['end'] < row['start']:
+        if float(row['end']) <= float(row['start']):
             name_clips.append('')
         else:
             tfm.trim(float(row['start']), float(row['end']))
@@ -94,23 +130,53 @@ def create_clips_from_timecode(df, save_dir):
     # df.insert(0, 'clips', df.pop('clips'))
 
 
-def create_corpus(folder_tcof, folder_clapi, save_clips):
+def create_corpus(folder_tcof, folder_cfpp, folder_ordeo, folder_cfpr, folder_pfc, save_clips):
     data = []
     trs_files_tcof = get_files_from_directory(folder_tcof)
-    # orfeo_files_clapi = get_files_from_directory(folder_clapi)
+    trs_files_cfpp = get_files_from_directory(folder_cfpp)
+    orfeo_files = get_files_from_directory(folder_ordeo)
+    cfpr_files = get_files_from_directory(folder_cfpr)
+    pfc_files = get_files_from_directory(folder_pfc)
     for f in trs_files_tcof:
-        if "Blocus" in f:
-            process_tcof_file_blocus(folder_tcof + f, data)
-        else:
-            process_tcof_file_blocus(folder_tcof + f, data)
-    # for f in orfeo_files_clapi:
-    #     process_clapi_file(folder_clapi + f, data)
-
+        process_trs_file(folder_tcof + f, data)
+    for f in trs_files_cfpp:
+        process_trs_file(folder_cfpp + f, data)
+    for f in orfeo_files:
+        process_orfeo_file(folder_ordeo + f, data)
+    for f in cfpr_files:
+        process_cfpr_file(folder_cfpr + f, data)
+    for f in pfc_files:
+        process_pfc_file(folder_pfc + f, data)
     df = pd.DataFrame(data, columns=['file', 'text', 'start', 'end'])
+
     create_clips_from_timecode(df, save_clips)
     df = df[df.clips != '']
-    df[['clips', 'text']].to_csv("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_2.csv", sep='\t', index=False)
+    select_20_sentences_per_file(df)
+    df[['clips', 'text']].to_csv("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_audio.csv", sep='\t',
+                                 index=False)
 
 
-create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof2/", "",
+def select_20_sentences_per_file(df):
+    selected_phrases_list = []
+
+    grouped = df.groupby('file')
+
+    for file_name in df['file'].unique():
+        group_phrases = grouped.get_group(file_name)
+        shuffled_phrases = group_phrases.sample(frac=1).reset_index(drop=True)
+        selected = shuffled_phrases[
+            shuffled_phrases['text'].apply(lambda x: 4 <= len(x.split()) <= 14)
+        ]
+        selected_phrases = selected.head(20)
+        selected_phrases_list.append(selected_phrases)
+
+    selected_df = pd.concat(selected_phrases_list, ignore_index=True)
+    selected_df[['clips', 'text']].to_csv(
+        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_audio_PE_test.csv", sep='\t',
+        index=False)
+
+
+create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof/", "/data/macairec/PhD/Grammaire/corpus/data/cfpp/",
+              "/data/macairec/PhD/Grammaire/corpus/data/orfeo/",
+              "/data/macairec/PhD/Grammaire/corpus/data/cfpr/", "/data/macairec/PhD/Grammaire/corpus/data/pfc/",
               "/data/macairec/PhD/Grammaire/corpus/clips/")

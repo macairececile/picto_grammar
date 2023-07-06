@@ -10,6 +10,7 @@ from transformers import AutoTokenizer, AutoModelForTokenClassification, pipelin
 from disambiguate import *
 from create_dicoPicto import *
 from nltk.corpus import wordnet as wn
+from create_json_from_grammar_for_pictoEdit import *
 
 phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bêêê', 'beurk',
                          'ben', 'beh',
@@ -95,7 +96,7 @@ def get_picto_from_synset(sense_key, wn_data, lexique):
 def read_sentences(csv_file):
     df = pd.read_csv(csv_file, sep='\t')
     # df2 = df.dropna()
-    return [a.lower() for a in df["text"].tolist()]
+    return [a.lower() for a in df["text"].tolist()], df
 
 
 # ---------------------------- #
@@ -657,50 +658,51 @@ def get_synonyms(sense_key):
 # ------------------------- #
 def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model):
     lexique = read_lexique(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique.csv")
-    wn_data = parse_wn31_file("/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/index.sense")
+        "/data/macairec/PhD/Grammaire/dico/lexique.csv")
+    wn_data = parse_wn31_file("/data/macairec/PhD/Grammaire/dico/index.sense")
     # apply rules
     s_process = process_text(sentence)
     if s_process is not None:
         s_spacy = process_with_spacy(s_process, spacy_model)
-        if len(s_spacy) < 14:
-            handle_onomatopoeia_and_others(s_spacy)
-            imperative_sentence(s_spacy)
-            futur_tense(s_spacy)
-            past_tense(s_spacy)
-            pronominale(s_spacy)
-            nombre(s_spacy)
-            pronouns(s_spacy)
-            indic_temp(s_spacy)
-            neg(s_spacy)
-            for i in range(4, 0, -1):
-                polylexical(s_spacy, lexique, i)
-            prefix(s_spacy)
-            name_entities(s_spacy, ner_model)
+        handle_onomatopoeia_and_others(s_spacy)
+        imperative_sentence(s_spacy)
+        futur_tense(s_spacy)
+        past_tense(s_spacy)
+        pronominale(s_spacy)
+        nombre(s_spacy)
+        pronouns(s_spacy)
+        indic_temp(s_spacy)
+        neg(s_spacy)
+        for i in range(4, 0, -1):
+            polylexical(s_spacy, lexique, i)
+        prefix(s_spacy)
+        name_entities(s_spacy, ner_model)
 
-            # mapping to ic_picto
-            mapping_text_to_picto(s_spacy, lexique)
-            # apply_wsd(wsd_model, s_spacy, voc_magali, dicoPicto, wn_data)
-            remove_consecutive_picto(s_spacy)
-            print("-----------------")
-            for w in s_spacy:
-                if w.picto == [404]:
-                    words_not_in_dico_picto.extend(w.lemma)
-                print(w.__str__())
+        # mapping to ic_picto
+        mapping_text_to_picto(s_spacy, lexique)
+        apply_wsd(wsd_model, s_spacy, lexique, wn_data)
+        remove_consecutive_picto(s_spacy)
+        print("-----------------")
+        for w in s_spacy:
+            if w.picto == [404]:
+                words_not_in_dico_picto.extend(w.lemma)
+            print(w.__str__())
 
-            return s_spacy
+        return s_spacy
+    else:
+        return None
+
 
 
 if __name__ == '__main__':
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    wsd_model = load_wsd_model("/home/cecilemacaire/Bureau/voice2picto_demo/model_wsd/")
-    # sentences = read_sentences("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_2.csv")
-    sentences = read_sentences(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/test.tsv")[:2000]
+    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
+    sentences, dataframe = read_sentences("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_audio_PE_test.csv")
     words_not_in_dico_picto = []
-    html_file = '/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/picto_grammar/scripts/commonVoice_test_2000.html'
-    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, '') for s in sentences]
-    print("\nWords with no picto : ", get_words_no_picto(s_rules))
-    print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
-    print_pictograms(sentences, s_rules, html_file)
+    # html_file = '/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/picto_grammar/scripts/commonVoice_test_2000.html'
+    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model) for s in sentences]
+    create_json(dataframe, s_rules, "/data/macairec/PhD/Grammaire/corpus/json_PE/PE_test.json")
+    # print("\nWords with no picto : ", get_words_no_picto(s_rules))
+    # print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
+    # print_pictograms(sentences, s_rules, html_file)
