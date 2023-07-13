@@ -1,10 +1,10 @@
 import json
 
-def create_json(dataframe, s_rules, output_json):
+def create_json(sentences_proc, s_rules, output_json):
     json_list = []
 
-    for i, row in dataframe.iterrows():
-        sentence = row['text']
+    for i, j in enumerate(sentences_proc):
+        sentence = j
         s = s_rules[i]
         pictos = []
         if s != None:

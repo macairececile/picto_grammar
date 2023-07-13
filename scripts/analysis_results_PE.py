@@ -1,3 +1,5 @@
+import math
+import os
 from os import listdir
 from os.path import isfile, join
 
@@ -33,22 +35,32 @@ def read_json_output(json_output_file):
         return sentence, pictos, user
 
 
-def get_input_picto_from_text(text, sentences, pictos):
+def get_input_picto_from_text(text, sentences, pictos, file_post_edit):
     index = sentences.index(text)
     return pictos[index]
 
 
 def get_token_from_id_pictos(pictos, lexique):
-    return ['_'.join(lexique.loc[lexique['id_picto'] == int(p)]["lemma"].tolist()[0].split(' #')[0].split(' ')) for p in
-            pictos]
+    terms = []
+    for p in pictos:
+        term = lexique.loc[lexique['id_picto'] == int(p)]["lemma"].tolist()
+        if not term:
+            terms.append('_')
+        else:
+            if isinstance(term[0], float):
+                if math.isnan(term[0]) and len(term) >= 2:
+                    terms.append('_'.join(term[1].split(' #')[0].split(' ')))
+            else:
+                terms.append('_'.join(term[0].split(' #')[0].split(' ')))
+    return terms
 
 
 def create_data_for_analysis(file_post_edit, lexique, dataframe, sentences, pictos):
     text, pictos_annot, user = read_json_output(file_post_edit)
-    pictos_grammar = get_input_picto_from_text(text, sentences, pictos)
+    pictos_grammar = get_input_picto_from_text(text, sentences, pictos, file_post_edit)
     pictos_grammar_tokens = get_token_from_id_pictos(pictos_grammar, lexique)
     pictos_annot_token = get_token_from_id_pictos(pictos_annot, lexique)
-    add_info = {'user': user, 'text': text, 'pictos_grammar': pictos_grammar, 'pictos_annot': pictos_annot,
+    add_info = {'file': file_post_edit, 'time': os.path.getmtime(file_post_edit), 'user': user, 'text': text, 'pictos_grammar': pictos_grammar, 'pictos_annot': pictos_annot,
                 'pictos_grammar_tokens': pictos_grammar_tokens, 'pictos_annot_token': pictos_annot_token}
     dataframe.loc[len(dataframe), :] = add_info
 
@@ -145,7 +157,7 @@ def analysis(json_folder, json_input, lexique):
     lexique = read_lexique(lexique)
     json_post_edit_files = get_json_from_post_edit(json_folder)
     df = pd.DataFrame(
-        columns=['user', 'text', 'pictos_grammar', 'pictos_annot', 'pictos_grammar_tokens', 'pictos_annot_token'])
+        columns=['file', 'time', 'user', 'text', 'pictos_grammar', 'pictos_annot', 'pictos_grammar_tokens', 'pictos_annot_token'])
     sentences, pictos = read_json_input(json_input)
     for f in json_post_edit_files:
         create_data_for_analysis(json_folder + f, lexique, df, sentences, pictos)
@@ -156,6 +168,7 @@ def analysis(json_folder, json_input, lexique):
     create_html_with_differences(df, html_file)
 
 
+
 if __name__ == '__main__':
-    analysis("/data/macairec/PhD/Grammaire/corpus/output_jsonPE/",
-             "/data/macairec/PhD/Grammaire/corpus/json_PE/PE1.json", "/data/macairec/PhD/Grammaire/dico/lexique.csv")
+    analysis("/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requests_all/",
+             "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences.json", "/data/macairec/PhD/Grammaire/dico/lexique.csv")
