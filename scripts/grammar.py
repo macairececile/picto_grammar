@@ -41,7 +41,7 @@ pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela
                        ["m'", "me"], ["une", "une"], ["cette", "la"]]
 
 expressions_no_translation_2words = ["du coup", "non plus", "en fait", "à part", "voili voilou", "au final",
-                              "point barre", "en vérité", "entre guillemets"]
+                                     "point barre", "en vérité", "entre guillemets", "quand même"]
 
 words_prefix = [
     ['dés', [24753]],
@@ -248,7 +248,7 @@ def load_ner_model():
 def no_translation_words(text_spacy):
     for i, w in enumerate(text_spacy):
         if len(text_spacy) > i + 1:
-            to_search = w.token + ' ' + text_spacy[i+1].token
+            to_search = w.token + ' ' + text_spacy[i + 1].token
             if to_search in expressions_no_translation_2words:
                 w.to_picto = False
                 text_spacy[i + 1].to_picto = False
@@ -257,11 +257,11 @@ def no_translation_words(text_spacy):
 def handle_dash(text_spacy, spacy_model):
     index_to_add_dash = []
     for i, w in enumerate(text_spacy):
-        if len(text_spacy) > i+2:
+        if len(text_spacy) > i + 2:
             if w.token == "est":
-                if text_spacy[i+1].token == '-ce':
-                    if text_spacy[i+2].token == "que" or text_spacy[i+2].token == "qu'":
-                        index_to_add_dash.append(i+1)
+                if text_spacy[i + 1].token == '-ce':
+                    if text_spacy[i + 2].token == "que" or text_spacy[i + 2].token == "qu'":
+                        index_to_add_dash.append(i + 1)
                         text_spacy[i + 2].token = "que"
                         text_spacy[i + 2].lemma = ["que"]
         if w.token.startswith('-') and len(w.token) > 1:
@@ -269,6 +269,8 @@ def handle_dash(text_spacy, spacy_model):
             index_to_add_dash.append(i)
             if w.lemma[0].startswith('-'):
                 w.lemma = [w.lemma[0][1:]]
+        if w.token == '-':
+            w.to_picto = False
     num_elem = 0
     doc = spacy_model('-')
     for ind in list(set(index_to_add_dash)):
@@ -481,7 +483,7 @@ def prefix(text_spacy):
             num_pref += 1
     for i, w in enumerate(text_spacy):
         if w.pos == 'PREF':
-            if text_spacy[i+1].to_picto == False:
+            if text_spacy[i + 1].to_picto == False:
                 w.to_picto = False
 
 
@@ -541,6 +543,25 @@ def polylexical(text_spacy, lexique, length):
     apply_polylexical(lemmas_plur, text_spacy, lexique, length)
     apply_polylexical(tokens, text_spacy, lexique, length)
     apply_polylexical(lemmas_with_prefix_and_plur, text_spacy, lexique, length)
+    apply_polylexical_with_in_between_words(lemmas_with_prefix, text_spacy, lexique, length)
+    apply_polylexical_with_in_between_words(lemmas_no_prefix, text_spacy, lexique, length)
+    apply_polylexical_with_in_between_words(lemmas_plur, text_spacy, lexique, length)
+    apply_polylexical_with_in_between_words(tokens, text_spacy, lexique, length)
+
+
+def apply_polylexical_with_in_between_words(lemmas, text_spacy, lexique, length):
+    lemmas_search = [[" ".join(lemmas[i:i + length + 1]), i + length] for i in range(len(lemmas) - length)]
+    for i in range(1, length):
+        for lem in lemmas_search:
+            index_to_keep = lem[1] - length + i
+            to_search_split = lem[0].split(" ")
+            to_search = to_search_split[:i] + to_search_split[i + 1:]
+            to_search = " ".join(to_search).replace("' ", "'").replace(" -", "-").replace("- ", "-")
+            id_picto = get_picto_lexique(to_search, lexique)
+            if not text_spacy[lem[1]].prefix:
+                if id_picto:
+                    add_polylexical_picto(text_spacy, lem[1], id_picto, length)
+                    text_spacy[index_to_keep].to_picto = True
 
 
 def name_entities(text_spacy, ner_model):
@@ -695,7 +716,8 @@ def get_synonyms(sense_key):
 def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc):
     lexique = read_lexique(
         "/data/macairec/PhD/Grammaire/dico/lexique.csv")
-    wn_data = parse_wn31_file("/data/macairec/PhD/Grammaire/dico/index.sense")
+    wn_data = parse_wn31_file(
+        "/data/macairec/PhD/Grammaire/dico/index.sense")
     # apply rules
     s_process = process_text(sentence)
     if s_process is not None:
@@ -711,15 +733,15 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
         nombre(s_spacy)
         pronouns(s_spacy)
         indic_temp(s_spacy)
-        neg(s_spacy)
         for i in range(8, 0, -1):
             polylexical(s_spacy, lexique, i)
+        neg(s_spacy)
         prefix(s_spacy)
         name_entities(s_spacy, ner_model)
 
         # mapping to ic_picto
         mapping_text_to_picto(s_spacy, lexique)
-        # apply_wsd(wsd_model, s_spacy, lexique, wn_data)
+        apply_wsd(wsd_model, s_spacy, lexique, wn_data)
         remove_consecutive_picto(s_spacy)
         print("-----------------")
         for w in s_spacy:
@@ -732,20 +754,19 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
         return None
 
 
-
 if __name__ == '__main__':
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    # wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
-    # sentences, dataframe = read_sentences("/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_audio_PE2.csv")
-    sentences = ["et qu'est-ce qu'il veut faire avec la voiture", "oui heu où est-ce que tu es allé en vacance", "comment vas-tu",
-                               "est-ce qu'on lance le débat", "genre qui est-ce qui nettoie la douche", "où allons-nous", "est-ce qu'il pleut", "quel âge as-tu", "combien y en a-t-il", "où vont-ils", "où va-t-il"]
-    sentences_2 = ["enfin voili voilou je suis pas sûr"]
+    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
+    sentences, dataframe = read_sentences(
+        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_ordeo_adrien_20_large.csv")
     words_not_in_dico_picto = []
     sentences_proc = []
-    html_file = "/data/macairec/PhD/Grammaire/scripts/test.html"
-    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, "", sentences_proc) for s in sentences_2]
-    # create_json(sentences_proc, s_rules, "/data/macairec/PhD/Grammaire/corpus/json_PE/PE2.json")
+    # html_file = "/home/cecilemacaire/test.html"
+    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc) for s in
+               sentences[:40]]
+    create_json(sentences_proc, s_rules,
+                "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_bis_large.json")
     # print("\nWords with no picto : ", get_words_no_picto(s_rules))
     # print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
-    print_pictograms(sentences_2, s_rules, html_file)
+    # print_pictograms(sentences, s_rules, html_file)

@@ -19,7 +19,7 @@ def create_html_file(html_file):
 
 
 def write_header_info_per_sentence(html_file, utt_name):
-    html_file.write("<div class=\"container\">")
+    html_file.write("<div class=\"container-fluid\">")
     html_file.write("<div class=\"row\">")
     html_file.write("<div class=\"col-12\"><div class=\"p-3\">")
     html_file.write(utt_name)

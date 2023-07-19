@@ -60,7 +60,8 @@ def create_data_for_analysis(file_post_edit, lexique, dataframe, sentences, pict
     pictos_grammar = get_input_picto_from_text(text, sentences, pictos, file_post_edit)
     pictos_grammar_tokens = get_token_from_id_pictos(pictos_grammar, lexique)
     pictos_annot_token = get_token_from_id_pictos(pictos_annot, lexique)
-    add_info = {'file': file_post_edit, 'time': os.path.getmtime(file_post_edit), 'user': user, 'text': text, 'pictos_grammar': pictos_grammar, 'pictos_annot': pictos_annot,
+    add_info = {'file': file_post_edit, 'time': os.path.getmtime(file_post_edit), 'user': user, 'text': text,
+                'pictos_grammar': pictos_grammar, 'pictos_annot': pictos_annot,
                 'pictos_grammar_tokens': pictos_grammar_tokens, 'pictos_annot_token': pictos_annot_token}
     dataframe.loc[len(dataframe), :] = add_info
 
@@ -127,18 +128,46 @@ def get_different_annotation_html_file(dataframe, html_file):
             if group['str'].nunique() > 1:
                 html_file.write("<div class=\"shadow p-3 mb-5 bg-white rounded\">")
                 write_header_info_per_sentence(html_file, "Text : " + group["text"].iloc[0])
+                html_file.write("<div class=\"container-fluid\">")
+                write_reference_picto(html_file, group.iloc[0])
+                html_file.write("</div>")
                 for i, row in group.iterrows():
                     write_header_info_per_sentence(html_file, "User : " + row["user"])
-                    html_file.write("<div class=\"container px-4\">")
+                    html_file.write("<div class=\"container-fluid\">")
                     write_differences_to_html(html_file, row)
                     html_file.write("</div>")
                 html_file.write("</div>")
 
 
+def get_same_annotation_html_file(dataframe, html_file):
+    grouped_df = dataframe.groupby('text')
+    for text, group in grouped_df:
+        if group['user'].nunique() > 1:
+            group['str'] = group['pictos_annot'].apply(lambda x: str(x))
+            pictos = [group["pictos_grammar"].iloc[0]]
+            for i, row in group.iterrows():
+                pictos.append(row['pictos_annot'])
+            if all(pictos[0] == sublist for sublist in pictos[1:]):
+                html_file.write("<div class=\"shadow p-3 mb-5 bg-white rounded\">")
+                write_header_info_per_sentence(html_file, "Text : " + group["text"].iloc[0])
+                html_file.write("<div class=\"container-fluid\">")
+                write_reference_picto(html_file, group.iloc[0])
+                html_file.write("</div>")
+            html_file.write("</div>")
+
+
 def create_html_with_differences(dataframe, html_file):
     html = create_html_file(html_file)
-    html.write("<div class = \"container\">")
+    html.write("<div class = \"container-fluid\">")
     get_different_annotation_html_file(dataframe, html)
+    html.write("</div></body></html>")
+    html.close()
+
+
+def create_html_with_correct_sentences(df, html_file):
+    html = create_html_file(html_file)
+    html.write("<div class = \"container-fluid\">")
+    get_same_annotation_html_file(df, html)
     html.write("</div></body></html>")
     html.close()
 
@@ -147,17 +176,28 @@ def write_differences_to_html(html_file, row):
     for i, p in enumerate(row['pictos_annot']):
         html_file.write(
             "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
-            "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + p + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
-                                                                                                             "<figcaption class=\"figure-caption text-center\">Token : " +
+            "<img src=\"https://static.arasaac.org/pictograms/" + p + "/" + p + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                                                                                              "<figcaption class=\"figure-caption text-center\">Token : " +
             row['pictos_annot_token'][i] + "</figcaption></figure>")
 
 
+def write_reference_picto(html_file, row):
+    for i, p in enumerate(row['pictos_grammar']):
+        html_file.write(
+            "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
+            "<img src=\"https://static.arasaac.org/pictograms/" + p + "/" + p + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                                                                                              "<figcaption class=\"figure-caption text-center\">Token : " +
+            row['pictos_grammar_tokens'][i] + "</figcaption></figure>")
+
+
 def analysis(json_folder, json_input, lexique):
-    html_file = "/data/macairec/PhD/Grammaire/picto_grammar/scripts/differences_PE.html"
+    html_file = "/data/macairec/PhD/Grammaire/differences_PE_large.html"
+    html_file_2 = "/data/macairec/PhD/Grammaire/differences_PE_large_same.html"
     lexique = read_lexique(lexique)
     json_post_edit_files = get_json_from_post_edit(json_folder)
     df = pd.DataFrame(
-        columns=['file', 'time', 'user', 'text', 'pictos_grammar', 'pictos_annot', 'pictos_grammar_tokens', 'pictos_annot_token'])
+        columns=['file', 'time', 'user', 'text', 'pictos_grammar', 'pictos_annot', 'pictos_grammar_tokens',
+                 'pictos_annot_token'])
     sentences, pictos = read_json_input(json_input)
     for f in json_post_edit_files:
         create_data_for_analysis(json_folder + f, lexique, df, sentences, pictos)
@@ -166,9 +206,11 @@ def analysis(json_folder, json_input, lexique):
     wer_scores = term_error_rate(df)
     print_automatic_eval(bleu_scores, wer_scores, meteor_scores)
     create_html_with_differences(df, html_file)
-
+    create_html_with_correct_sentences(df, html_file_2)
 
 
 if __name__ == '__main__':
-    analysis("/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requests_all/",
-             "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences.json", "/data/macairec/PhD/Grammaire/dico/lexique.csv")
+    analysis(
+        "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requestsPE_large/",
+        "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_large.json",
+        "/data/macairec/PhD/Grammaire/dico/lexique.csv")
