@@ -763,10 +763,11 @@ if __name__ == '__main__':
     words_not_in_dico_picto = []
     sentences_proc = []
     # html_file = "/home/cecilemacaire/test.html"
+    sentence_test = ["j'ai été aimé du poulet"]
     s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc) for s in
-               sentences[:40]]
-    create_json(sentences_proc, s_rules,
-                "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_bis_large.json")
+               sentence_test]
+    # create_json(sentences_proc, s_rules,
+    #             "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_bis_large.json")
     # print("\nWords with no picto : ", get_words_no_picto(s_rules))
     # print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
     # print_pictograms(sentences, s_rules, html_file)

@@ -9,6 +9,7 @@ import evaluate
 bleu = evaluate.load("bleu")
 meteor = evaluate.load('meteor')
 wer = evaluate.load('wer')
+from statistics import mean
 
 from print_sentences_from_grammar import *
 
@@ -120,6 +121,82 @@ def print_automatic_eval(bleu_scores, term_error_rate_score, meteor_score):
     print("-------------------")
 
 
+def score_between_annotators(df):
+    references = []
+    predictions = []
+    grouped_df = df.groupby('text')
+    for text, group in grouped_df:
+        if group['user'].nunique() > 1:
+            add_cecile = False
+            add_chloe = False
+            for i, row in group.iterrows():
+                if row['user'] == "cécile" and not add_cecile:
+                    references.append(' '.join(row['pictos_annot_token']))
+                    add_cecile = True
+                if row['user'] == "chloé" and not add_chloe:
+                    predictions.append(' '.join(row['pictos_annot_token']))
+                    add_chloe = True
+    wer_score = round(wer.compute(predictions=predictions, references=references), 3) * 100
+    meteor_score = round(meteor.compute(predictions=predictions, references=references)["meteor"], 3)
+    bleu_score = round(bleu.compute(predictions=predictions, references=[[i] for i in references])["bleu"], 3)
+    print("-------------------")
+    print("| BLEU  | METEOR | WER  |")
+    print("|----------------------------------|")
+    print("| {:<5.3f} | {:<6.3f} | {:<4.1f} |".format(bleu_score, meteor_score, wer_score))
+    print("-------------------")
+
+
+# def kappa_coefficient(annotations_1, annotations_2):
+#     kappas = []
+#     for i, annot in enumerate(annotations_1):
+#         annotator_1_counts = {}
+#         annotator_2_counts = {}
+#         for annotation in annot:
+#             annotator_1_counts[annotation] = annotator_1_counts.get(annotation, 0) + 1
+#
+#         for annotation in annotations_2[i]:
+#             annotator_2_counts[annotation] = annotator_2_counts.get(annotation, 0) + 1
+#             # Créer une liste contenant tous les mots uniques dans les deux annotations
+#         words = list(set(list(annotator_1_counts.keys()) + list(annotator_2_counts.keys())))
+#         matrix = {'mot': [], 'annot1': [], 'annot2': []}
+#         for w in words:
+#             if w not in annotator_1_counts.keys():
+#                 annotator_1_counts[w] = 0
+#             if w not in annotator_2_counts.keys():
+#                 annotator_2_counts[w] = 0
+#             matrix['mot'].append(w)
+#             matrix['annot1'].append(annotator_1_counts[w])
+#             matrix['annot2'].append(annotator_2_counts[w])
+#
+#         total_annotations = sum(matrix['annot1']) + sum(matrix['annot2'])
+#         agreements = sum(min(matrix['annot1'][i], matrix['annot2'][i]) for i in range(len(matrix['mot'])))
+#         total_annot1 = sum(matrix['annot1'])
+#         P_o = agreements / sum(matrix['annot1'])
+#         total_annot2 = sum(matrix['annot2'])
+#         P_e = (total_annot1 / total_annotations) * (total_annot2 / total_annotations)
+#         kappa = (P_o - P_e) / (1 - P_e)
+#         kappas.append(kappa)
+#     print(kappas)
+#     return kappas
+
+
+# def calculate_kappa_coef(df):
+#     kappa = 0
+#     annotator_1 = []
+#     annotator_2 = []
+#     grouped_df = df.groupby('text')
+#     for text, group in grouped_df:
+#         if group['user'].nunique() > 1:
+#             for i, row in group.iterrows():
+#                 if row['user'] == "cécile":
+#                     annotator_1.append(row['pictos_annot_token'])
+#                 if row['user'] == "chloé":
+#                     annotator_2.append(row['pictos_annot_token'])
+#     if annotator_1 and annotator_2:
+#         kappa = kappa_coefficient(annotator_1, annotator_2)
+#     return kappa
+
+
 def get_different_annotation_html_file(dataframe, html_file):
     grouped_df = dataframe.groupby('text')
     for text, group in grouped_df:
@@ -204,13 +281,18 @@ def analysis(json_folder, json_input, lexique):
     bleu_scores = term_bleu(df)
     meteor_scores = term_meteor(df)
     wer_scores = term_error_rate(df)
+    score_between_annotators(df)
     print_automatic_eval(bleu_scores, wer_scores, meteor_scores)
     create_html_with_differences(df, html_file)
     create_html_with_correct_sentences(df, html_file_2)
 
 
 if __name__ == '__main__':
+    # analysis(
+    #     "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requestsPE_large/",
+    #     "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_large.json",
+    #     "/data/macairec/PhD/Grammaire/dico/lexique.csv")
     analysis(
-        "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requestsPE_large/",
-        "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_large.json",
+        "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/requestsPE_bis/",
+        "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_bis.json",
         "/data/macairec/PhD/Grammaire/dico/lexique.csv")
