@@ -10,7 +10,7 @@ import re
 
 def get_files_from_directory(dir):
     files = [f for f in listdir(dir) if isfile(join(dir, f)) if
-             '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f or ".orfeo_golded" in f]
+             '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f] # or ".orfeo_golded" in f
     return files
 
 
@@ -139,7 +139,7 @@ def process_orfeo_adrien(file, df):
         for line in f:
             if line.startswith("# sent_id"):
                 if current_sentence:
-                    s = current_sentence.replace("' ", "'").replace("#", ' ')
+                    s = current_sentence.replace("' ", "'").replace("#", ' ').replace("«", ' ')
                     maj = re.findall(r'[A-Z]', s)
                     s = s.replace(' '.join(maj), ''.join(maj))
                     s = re.sub(r'\w+~', '', s)
@@ -197,18 +197,16 @@ def select_20_sentences_per_file(df):
     for file_name in df['file'].unique():
         group_phrases = grouped.get_group(file_name)
         shuffled_phrases = group_phrases.sample(frac=1).reset_index(drop=True)
-        # selected = shuffled_phrases[
-        #     shuffled_phrases['text'].apply(lambda x: 4 <= len(x.split()) <= 14)
-        # ]
         selected = shuffled_phrases[
-            shuffled_phrases['text'].apply(lambda x: 14 <= len(x.split()) <= 25)
+            shuffled_phrases['text'].apply(lambda x: 1 < len(x.split()))
         ]
-        selected_phrases = selected.head(2)
-        selected_phrases_list.append(selected_phrases)
+        # selected_phrases = selected.head(2)
+        selected_phrases_list.append(selected)
 
     selected_df = pd.concat(selected_phrases_list, ignore_index=True)
-    selected_df[['clips', 'text']].to_csv(
-        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_ordeo_adrien_20_large.csv",
+    new = selected_df.sample(frac=1).reset_index(drop=True)
+    new[['clips', 'text']].to_csv(
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/corpus_valibel.csv",
         sep='\t',
         index=False)
 
@@ -221,14 +219,14 @@ def create_corpus_from_adrien(folder_ordeo):
     df = pd.DataFrame(data, columns=['file', 'clips', 'text'])
     df = df[df.clips != '']
     select_20_sentences_per_file(df)
-    df[['clips', 'text']].to_csv(
-        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_ordeo_adrien.csv",
-        sep='\t',
-        index=False)
+    # df[['clips', 'text']].to_csv(
+    #     "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/corpus_cfpb.csv",
+    #     sep='\t',
+    #     index=False)
 
 
 create_corpus_from_adrien(
-    "/data/macairec/PhD/Grammaire/corpus/data/orfeo_adrien/")
+    "/run/user/1000/gvfs/sftp:host=dvorak0.lig,user=macairec/home/getalp/data/ASR_data/FR/CORPUS_AUDIO/cefc-orfeo_v.1.5_december2021/11/cleaned_v2/valibel/")
 
 # create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof/", "/data/macairec/PhD/Grammaire/corpus/data/cfpp/",
 #               "/data/macairec/PhD/Grammaire/corpus/data/orfeo/",

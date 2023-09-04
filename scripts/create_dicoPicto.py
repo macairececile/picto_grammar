@@ -138,7 +138,7 @@ def create_dicoPicto(file_arasaac, dicoPicto_file, wn_file):
     final_lexique = pd.DataFrame({"id_picto": id_picto, "lemma": lemma, "synsets": synsets, "sense_keys": sense_keys})
     # final_lexique = final_lexique.drop_duplicates()
     final_lexique.to_csv(
-        "/data/macairec/PhD/Grammaire/dico/lexique.csv",
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique.csv",
         sep='\t', index=False)
 
 # create_dicoPicto("/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",

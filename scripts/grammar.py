@@ -11,6 +11,7 @@ from disambiguate import *
 from create_dicoPicto import *
 from nltk.corpus import wordnet as wn
 from create_json_from_grammar_for_pictoEdit import *
+import csv
 
 phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bêêê', 'beurk',
                          'ben', 'beh', "bref",
@@ -19,11 +20,12 @@ phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'ba
                          'croa croa', 'cuicui', 'ding', 'ding deng dong', 'ding dong', 'dring', 'hé', 'hé ben',
                          'eh bien', 'euh',
                          'flic flac', 'flip flop', 'frou frou', 'glouglou', 'glou glou', 'groin groin', 'grr', 'hé',
-                         'hep', 'hein',
+                         'hep', 'hein', 'hm',
                          'hi han', 'hip hip hip hourra', 'hop', 'houla', 'hourra', 'hum', 'mêêê', 'meuh', 'miam',
                          'miam miam',
                          'miaou',
-                         'oh', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan', 'patatras', 'pchhh', 'pchit',
+                         'oh', 'oh là là', 'oh là', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan', 'patatras',
+                         'pchhh', 'pchit',
                          'pff', 'pif-paf', 'pin pon', 'pioupiou', 'plouf', 'pof', 'pouet', 'pouet pouet', 'pouf',
                          'psst', 'ron ron',
                          'schlaf', 'snif', 'splaf', 'splatch', 'sss', 'tacatac', 'tagada', 'tchac', 'teuf teuf',
@@ -36,12 +38,10 @@ futur_anterieur = ["aurai", "auras", "aura", 'aurons', "aurez", "auront", "serai
                    "seront"]
 
 words_to_replace = [["Monsieur", "monsieur"], ["Madame", "madame"], ["mademoiselle", "madame"], ["ça", "cela"],
-                    ["nan", "non"], ["madame", "madame"], ["belle", "belle"]]
-pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela"], ["t'", "tu"], ["on", "nous"],
-                       ["m'", "me"], ["une", "une"], ["cette", "la"]]
+                    ["nan", "non"], ["madame", "madame"], ["belle", "belle"], ['moui', 'oui']]
 
-expressions_no_translation_2words = ["du coup", "non plus", "en fait", "à part", "voili voilou", "au final",
-                                     "point barre", "en vérité", "entre guillemets", "quand même"]
+pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela"], ["t'", "tu"], ["on", "nous"],
+                       ["m'", "me"], ["une", "une"], ["cette", "la"], ['te', 'toi']]
 
 words_prefix = [
     ['dés', [24753]],
@@ -91,6 +91,16 @@ def get_picto_from_synset(sense_key, wn_data, lexique):
     for s in synsets:
         pictos.extend(list(set(lexique.loc[lexique['synsets'].apply(lambda x: s in x), "id_picto"].tolist())))
     return pictos
+
+
+def read_no_translation_words(no_translation_file):
+    no_translation = []
+    with open(no_translation_file, newline='') as csvfile:
+        lecteur_csv = csv.reader(csvfile)
+        for ligne in lecteur_csv:
+            element = ligne[0]
+            no_translation.append(element)
+    return no_translation
 
 
 # -------------------------------- #
@@ -224,15 +234,26 @@ def process_text(text):
     matches = re.findall(pattern, text)
     for match in matches:
         text = text.replace("/" + match + "/", match.split(",")[0])
-    text = text.replace("ouais", "oui").replace("’", "'").replace("plait", "plaît")
+    text = text.replace("ouais", "oui").replace("’", "'").replace("plait", "plaît").replace("là bas", "là-bas")
     for c in special_characters:
         if c in text:
             text = text.replace(c, '')
-
     if not text.strip():
         return None
     else:
         return ' '.join(text.split())
+
+
+def remove_useless_words(text, no_translation_words):
+    # handle phatiques and onomatopés
+    for p in phatiques_onomatopees:
+        text = text.replace(p, '')
+    text_no_pathiques_onom = ' '.join(text.split())
+    # handle words not to translate
+    for w in no_translation_words:
+        text_no_pathiques_onom = text_no_pathiques_onom.replace(w, '')
+    final_text = ' '.join(text_no_pathiques_onom.split())
+    return final_text
 
 
 def load_ner_model():
@@ -245,15 +266,6 @@ def load_ner_model():
 # ------------------ #
 # ------ RULES ----- #
 # ------------------ #
-def no_translation_words(text_spacy):
-    for i, w in enumerate(text_spacy):
-        if len(text_spacy) > i + 1:
-            to_search = w.token + ' ' + text_spacy[i + 1].token
-            if to_search in expressions_no_translation_2words:
-                w.to_picto = False
-                text_spacy[i + 1].to_picto = False
-
-
 def handle_dash(text_spacy, spacy_model):
     index_to_add_dash = []
     for i, w in enumerate(text_spacy):
@@ -280,13 +292,11 @@ def handle_dash(text_spacy, spacy_model):
         num_elem += 1
 
 
-def handle_onomatopoeia_and_others(text_spacy):
+def handle_intj(text_spacy):  # mettre avant la lemmatisation avec spacy
     for w in text_spacy:
         for t in words_to_replace:
             if w.lemma[0] == t[0]:
                 w.lemma = [t[1]]
-        if w.token in phatiques_onomatopees:
-            w.to_picto = False
         if w.pos == "INTJ":
             w.to_picto = False
 
@@ -411,6 +421,9 @@ def pronouns(text_spacy):
                         w.lemma = [p[1]]
             else:
                 w.lemma = [w.token]
+            if w.token == "qui" and w.morph.get("PronType"):
+                if w.morph.get("PronType")[0] == "Rel":
+                    w.picto = [11351]
 
 
 def indic_temp(text_spacy):
@@ -613,6 +626,12 @@ def check_ner(w, lexique):
                 w.add_picto([36935])
 
 
+def special_cases(text_spacy):
+    for w in text_spacy:
+        if w.token == 'paris' and w.pos == 'PROPN':
+            w.picto = [10271]
+
+
 def mapping_text_to_picto(text_after_rules, lexique):
     # modifier cette horreur de code
     for i, w in enumerate(text_after_rules):
@@ -715,41 +734,46 @@ def get_synonyms(sense_key):
 # ------------------------- #
 def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc):
     lexique = read_lexique(
-        "/data/macairec/PhD/Grammaire/dico/lexique.csv")
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique.csv")
     wn_data = parse_wn31_file(
-        "/data/macairec/PhD/Grammaire/dico/index.sense")
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/index.sense")
+    no_translation_words = read_no_translation_words(
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/no_translation.csv")
     # apply rules
     s_process = process_text(sentence)
     if s_process is not None:
-        sentences_proc.append(s_process)
-        s_spacy = process_with_spacy(s_process, spacy_model)
-        handle_dash(s_spacy, spacy_model)
-        no_translation_words(s_spacy)
-        handle_onomatopoeia_and_others(s_spacy)
-        imperative_sentence(s_spacy)
-        futur_tense(s_spacy)
-        past_tense(s_spacy)
-        pronominale(s_spacy)
-        nombre(s_spacy)
-        pronouns(s_spacy)
-        indic_temp(s_spacy)
-        for i in range(8, 0, -1):
-            polylexical(s_spacy, lexique, i)
-        neg(s_spacy)
-        prefix(s_spacy)
-        name_entities(s_spacy, ner_model)
+        s_new = remove_useless_words(s_process, no_translation_words)
+        if len(s_new) > 0:
+            sentences_proc.append(s_process)
+            s_spacy = process_with_spacy(s_new, spacy_model)
+            handle_dash(s_spacy, spacy_model)
+            handle_intj(s_spacy)
+            imperative_sentence(s_spacy)
+            futur_tense(s_spacy)
+            past_tense(s_spacy)
+            pronominale(s_spacy)
+            nombre(s_spacy)
+            pronouns(s_spacy)
+            indic_temp(s_spacy)
+            for i in range(8, 0, -1):
+                polylexical(s_spacy, lexique, i)
+            neg(s_spacy)
+            prefix(s_spacy)
+            name_entities(s_spacy, ner_model)
+            special_cases(s_spacy)
+            # mapping to ic_picto
+            mapping_text_to_picto(s_spacy, lexique)
+            apply_wsd(wsd_model, s_spacy, lexique, wn_data)
+            remove_consecutive_picto(s_spacy)
+            print("-----------------")
+            for w in s_spacy:
+                # if w.picto == [404]:
+                #     words_not_in_dico_picto.extend(w.lemma)
+                print(w.__str__())
 
-        # mapping to ic_picto
-        mapping_text_to_picto(s_spacy, lexique)
-        apply_wsd(wsd_model, s_spacy, lexique, wn_data)
-        remove_consecutive_picto(s_spacy)
-        print("-----------------")
-        for w in s_spacy:
-            # if w.picto == [404]:
-            #     words_not_in_dico_picto.extend(w.lemma)
-            print(w.__str__())
-
-        return s_spacy
+            return s_spacy
+        else:
+            return None
     else:
         return None
 
@@ -757,17 +781,15 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
 if __name__ == '__main__':
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
+    wsd_model = load_wsd_model("/home/cecilemacaire/Bureau/voice2picto_demo/model_wsd/")
     sentences, dataframe = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_ordeo_adrien_20_large.csv")
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/orfeo/corpus_valibel.csv")
     words_not_in_dico_picto = []
     sentences_proc = []
-    # html_file = "/home/cecilemacaire/test.html"
-    sentence_test = ["j'ai été aimé du poulet"]
     s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc) for s in
-               sentence_test]
+               sentences]
     # create_json(sentences_proc, s_rules,
-    #             "/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_bis_large.json")
+    #             "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_valibel.json")
     # print("\nWords with no picto : ", get_words_no_picto(s_rules))
     # print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
-    # print_pictograms(sentences, s_rules, html_file)
+    print_pictograms(sentences, s_rules, "test.html")
