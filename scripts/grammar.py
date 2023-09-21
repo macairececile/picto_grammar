@@ -11,9 +11,15 @@ from disambiguate import *
 from create_dicoPicto import *
 from nltk.corpus import wordnet as wn
 from create_json_from_grammar_for_pictoEdit import *
+from analysis_results_PE import *
 import csv
 
-phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bêêê', 'beurk',
+import warnings
+
+warnings.filterwarnings("ignore")
+
+phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bè', 'bêêê',
+                         'beurk',
                          'ben', 'beh', "bref",
                          'bing', 'boum', 'broum', 'cataclop', 'clap clap', 'coa coa', 'cocorico', 'coin coin',
                          'crac',
@@ -22,15 +28,18 @@ phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'ba
                          'flic flac', 'flip flop', 'frou frou', 'glouglou', 'glou glou', 'groin groin', 'grr', 'hé',
                          'hep', 'hein', 'hm',
                          'hi han', 'hip hip hip hourra', 'hop', 'houla', 'hourra', 'hum', 'mêêê', 'meuh', 'miam',
-                         'miam miam',
+                         'miam miam', 'mh', 'mm',
                          'miaou',
                          'oh', 'oh là là', 'oh là', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan', 'patatras',
-                         'pchhh', 'pchit',
+                         'pchhh', 'pchit', 'pf',
                          'pff', 'pif-paf', 'pin pon', 'pioupiou', 'plouf', 'pof', 'pouet', 'pouet pouet', 'pouf',
-                         'psst', 'ron ron',
+                         'psst', 'rah', 'ron ron',
                          'schlaf', 'snif', 'splaf', 'splatch', 'sss', 'tacatac', 'tagada', 'tchac', 'teuf teuf',
                          'tic tac', 'toc',
                          'tut tut', 'vlan', 'vroum', 'vrrr', 'wouah', 'zip']
+
+single_letters = ['b', 'c', 'd', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
+                  'e']
 
 special_characters = ['<', '>', '/', ',', '*', '"', ',', '.', '…', '!', '?', ':', ';', '#']
 
@@ -109,7 +118,8 @@ def read_no_translation_words(no_translation_file):
 def read_sentences(csv_file):
     df = pd.read_csv(csv_file, sep='\t')
     # df2 = df.dropna()
-    return [a.lower() for a in df["text"].tolist()], df
+    df2 = df.drop_duplicates()
+    return [a.lower() for a in df2["text"].tolist()], df2
 
 
 # ---------------------------- #
@@ -247,12 +257,23 @@ def process_text(text):
 def remove_useless_words(text, no_translation_words):
     # handle phatiques and onomatopés
     for p in phatiques_onomatopees:
-        text = text.replace(p, '')
+        text = text.replace(' '+p+' ', ' ')
+        if text.startswith(p+' '):
+            text = text[len(p):]
+        if text.endswith(' '+p):
+            text = text[:-len(p)]
     text_no_pathiques_onom = ' '.join(text.split())
     # handle words not to translate
     for w in no_translation_words:
         text_no_pathiques_onom = text_no_pathiques_onom.replace(w, '')
     final_text = ' '.join(text_no_pathiques_onom.split())
+    for s in single_letters:
+        final_text = final_text.replace(' '+s+' ', ' ')
+        if final_text.startswith(s+' '):
+            final_text = final_text[1:]
+        if final_text.endswith(' '+s):
+            final_text = final_text[:-1]
+        final_text = ' '.join(final_text.split())
     return final_text
 
 
@@ -690,8 +711,8 @@ def apply_wsd(wsd_model, text_spacy, lexique, wn_data):
         if w.to_picto and w.picto == [404] and w.pos in ["VERB", "ADJ", "NOUN", "PROPN"]:
             apply = True
     if apply:
-        for w in text_spacy:
-            print(w.token)
+        # for w in text_spacy:
+        #     print(w.token)
         disambiguate(text_spacy, wsd_model)
         for w in text_spacy:
             if w.wsd != '':
@@ -732,19 +753,19 @@ def get_synonyms(sense_key):
 # ------------------------- #
 # -------- GRAMMAR -------- #
 # ------------------------- #
-def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc):
-    lexique = read_lexique(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique.csv")
+def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc, lexique):
     wn_data = parse_wn31_file(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/index.sense")
+        "/data/macairec/PhD/Grammaire/dico/index.sense")
     no_translation_words = read_no_translation_words(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/no_translation.csv")
+        "/data/macairec/PhD/Grammaire/dico/no_translation.csv")
     # apply rules
     s_process = process_text(sentence)
+    sentences_proc.append(s_process)
     if s_process is not None:
         s_new = remove_useless_words(s_process, no_translation_words)
+        # print("Init sentence : ", sentence)
+        # print("New sentence  : ", s_new)
         if len(s_new) > 0:
-            sentences_proc.append(s_process)
             s_spacy = process_with_spacy(s_new, spacy_model)
             handle_dash(s_spacy, spacy_model)
             handle_intj(s_spacy)
@@ -765,11 +786,12 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
             mapping_text_to_picto(s_spacy, lexique)
             apply_wsd(wsd_model, s_spacy, lexique, wn_data)
             remove_consecutive_picto(s_spacy)
-            print("-----------------")
-            for w in s_spacy:
-                # if w.picto == [404]:
-                #     words_not_in_dico_picto.extend(w.lemma)
-                print(w.__str__())
+            print(s_new)
+            # print("-----------------")
+            # for w in s_spacy:
+            #     # if w.picto == [404]:
+            #     #     words_not_in_dico_picto.extend(w.lemma)
+            #     print(w.__str__())
 
             return s_spacy
         else:
@@ -778,18 +800,50 @@ def grammar(sentence, spacy_model, words_not_in_dico_picto, ner_model, wsd_model
         return None
 
 
+def create_dataframe_save_grammar_results():
+    df = pd.DataFrame(
+        columns=['clips', 'text', 'text_process', 'pictos', 'tokens'])
+    return df
+
+
+def save_data_grammar_to_csv(dataframe_init, df, sentences, s_rules, sentences_proc, lexique, output_file):
+    for i, j in enumerate(s_rules):
+        if j is None:
+            add_info = {'clips': dataframe_init.iloc[i]["clips"], 'text': sentences[i], 'text_process': "",
+                        'pictos': "",
+                        'tokens': ""}
+            df.loc[len(df), :] = add_info
+        else:
+            pictos = []
+            for w in j:
+                if w.to_picto:
+                    if w.picto != [404]:
+                        pictos.append(w.picto[0])
+            tokens = get_token_from_id_pictos(pictos, lexique)
+            add_info = {'clips': dataframe_init.iloc[i]["clips"], 'text': sentences[i],
+                        'text_process': sentences_proc[i], 'pictos': pictos,
+                        'tokens': " ".join(tokens)}
+            df.loc[len(df), :] = add_info
+    df.to_csv(output_file, sep='\t', index=False)
+
+
 if __name__ == '__main__':
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    wsd_model = load_wsd_model("/home/cecilemacaire/Bureau/voice2picto_demo/model_wsd/")
+    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
+    lexique = read_lexique(
+        "/data/macairec/PhD/Grammaire/dico/lexique.csv")
     sentences, dataframe = read_sentences(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/orfeo/corpus_valibel.csv")
+        "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/corpus_ofrom.csv")
     words_not_in_dico_picto = []
     sentences_proc = []
-    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc) for s in
+    s_rules = [grammar(s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc, lexique) for s in
                sentences]
+    df_grammar = create_dataframe_save_grammar_results()
+    save_data_grammar_to_csv(dataframe, df_grammar, sentences, s_rules, sentences_proc, lexique,
+                             "/data/macairec/PhD/Grammaire/corpus/output_grammar/corpus_ofrom_grammar.csv")
     # create_json(sentences_proc, s_rules,
     #             "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/json_PE/sentences_valibel.json")
     # print("\nWords with no picto : ", get_words_no_picto(s_rules))
     # print("\nWords not in dico_picto : ", list(set(words_not_in_dico_picto)))
-    print_pictograms(sentences, s_rules, "test.html")
+    # print_pictograms(sentences, s_rules, "test.html")

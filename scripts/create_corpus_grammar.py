@@ -139,7 +139,7 @@ def process_orfeo_adrien(file, df):
         for line in f:
             if line.startswith("# sent_id"):
                 if current_sentence:
-                    s = current_sentence.replace("' ", "'").replace("#", ' ').replace("«", ' ')
+                    s = current_sentence.replace("' ", "'").replace("#", ' ').replace("«", ' ').replace("»", ' ')
                     maj = re.findall(r'[A-Z]', s)
                     s = s.replace(' '.join(maj), ''.join(maj))
                     s = re.sub(r'\w+~', '', s)
@@ -205,7 +205,8 @@ def select_20_sentences_per_file(df):
 
     selected_df = pd.concat(selected_phrases_list, ignore_index=True)
     new = selected_df.sample(frac=1).reset_index(drop=True)
-    new[['clips', 'text']].to_csv(
+    final_df = new.drop_duplicates()
+    final_df[['clips', 'text']].to_csv(
         "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/corpus_valibel.csv",
         sep='\t',
         index=False)
