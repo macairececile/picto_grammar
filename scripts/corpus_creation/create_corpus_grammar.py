@@ -1,3 +1,9 @@
+"""
+Script to process the orfeo corpus, extract aligned transcriptions with clip name.
+
+Example of use: python create_corpus_grammar.py --datadir /.../ --save_dir corpus/
+"""
+
 import xml.etree.ElementTree as ET
 
 import sox
@@ -6,16 +12,36 @@ from os.path import join, isfile
 import pandas as pd
 import textgrid
 import re
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 
 def get_files_from_directory(dir):
+    """
+        Get the files from a specific format in a directory.
+
+        Arguments
+        ---------
+        dir: str
+            Path of the folder.
+
+        Returns
+        -------
+        A list of files.
+    """
     files = [f for f in listdir(dir) if isfile(join(dir, f)) if
-             '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f] # or ".orfeo_golded" in f
+             '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f]
     return files
 
 
 def process_trs_file(trs_file, data):
-    # Charger le fichier XML
+    """
+        Retrieve specific information from a trs file.
+
+        Arguments
+        ---------
+        trs_file: str
+        data: list
+    """
     tree = ET.parse(trs_file)
     root = tree.getroot()
 
@@ -28,7 +54,15 @@ def process_trs_file(trs_file, data):
             data.append({'file': trs_file, 'text': text, 'start': starttime, 'end': endtime})
 
 
-def process_tcof_file_blocus(trs_file, data):
+def process_tcof_file_format_bis(trs_file, data):
+    """
+        Process files with a specific format
+
+        Arguments
+        ---------
+        trs_file: str
+        data: list
+    """
     tree = ET.parse(trs_file)
     root = tree.getroot()
 
@@ -50,6 +84,17 @@ def process_tcof_file_blocus(trs_file, data):
 
 
 def process_text_tcof(text):
+    """
+        Process text from TCOF corpus.
+
+        Arguments
+        ---------
+        text: str
+
+        Returns
+        -------
+        A processed text.
+    """
     to_replace = ['+', '///', '- ', ' -', '***', '*', '=']
     to_replace_2 = ['(', ')']
     for i in to_replace:
@@ -60,6 +105,17 @@ def process_text_tcof(text):
 
 
 def process_text_pfc(text):
+    """
+        Process text from PFC corpus.
+
+        Arguments
+        ---------
+        text: str
+
+        Returns
+        -------
+        A processed text.
+    """
     sp_text = text.split(" ")
     new_text = ''
     for w in sp_text:
@@ -72,6 +128,14 @@ def process_text_pfc(text):
 
 
 def process_orfeo_file(clapi_file, data):
+    """
+        Process file from ORFEO.
+
+        Arguments
+        ---------
+        clapi_file: str
+        data: list
+    """
     with open(clapi_file, 'r') as file:
         texte = None
         starttime = 0
@@ -88,6 +152,14 @@ def process_orfeo_file(clapi_file, data):
 
 
 def process_cfpr_file(cfpr_file, data):
+    """
+        Process file from CFPR.
+
+        Arguments
+        ---------
+        cfpr_file: str
+        data: list
+    """
     tg = textgrid.TextGrid.fromFile(cfpr_file)
     for i in range(tg[0].__len__()):
         if tg[0][i].mark != '_':
@@ -96,6 +168,14 @@ def process_cfpr_file(cfpr_file, data):
 
 
 def process_pfc_file(pfc_file, data):
+    """
+        Process file from PFC.
+
+        Arguments
+        ---------
+        pfc_file: str
+        data: list
+    """
     tree = ET.parse(pfc_file)
     root = tree.getroot()
 
@@ -110,6 +190,16 @@ def process_pfc_file(pfc_file, data):
 
 
 def create_clips_from_timecode(df, save_dir):
+    """
+        Create clips from the retrieved information, and save the clip names in the dataframe.
+
+        Arguments
+        ---------
+        df: dataframe
+            Dataframe with information
+        save_dir: str
+            Directory to save the created clips
+    """
     name_clips = []
     for index, row in df.iterrows():
         if 'orfeo' in row['file']:
@@ -128,10 +218,19 @@ def create_clips_from_timecode(df, save_dir):
             tfm.build_file(wav_file, file_clip)
             name_clips.append(wav_file[:-4].split('/')[-1] + "_{}.wav".format(index))
     df['clips'] = name_clips
-    # df.insert(0, 'clips', df.pop('clips'))
 
 
-def process_orfeo_adrien(file, df):
+def process_orfeo_cleaned(file, df):
+    """
+        Retrieve information from the cleaned orfeo repository.
+
+        Arguments
+        ---------
+        df: dataframe
+            Dataframe to store information
+        file: str
+            File from orfeo.
+    """
     name_clip = []
     current_sentence = ""
     sentences = []
@@ -162,13 +261,16 @@ def process_orfeo_adrien(file, df):
         df.append({'file': file.split('/')[-1], 'clips': name_clip[i], 'text': sentences[i]})
 
 
-def create_corpus(folder_tcof, folder_cfpp, folder_ordeo, folder_cfpr, folder_pfc, save_clips):
+def create_corpus(args):
+    """
+        Create a csv file with clip names and associated text, as well as a directory with clip files.
+    """
     data = []
-    trs_files_tcof = get_files_from_directory(folder_tcof)
-    trs_files_cfpp = get_files_from_directory(folder_cfpp)
-    orfeo_files = get_files_from_directory(folder_ordeo)
-    cfpr_files = get_files_from_directory(folder_cfpr)
-    pfc_files = get_files_from_directory(folder_pfc)
+    trs_files_tcof = get_files_from_directory(args.folder_tcof)
+    trs_files_cfpp = get_files_from_directory(args.folder_cfpp)
+    orfeo_files = get_files_from_directory(args.folder_ordeo)
+    cfpr_files = get_files_from_directory(args.folder_cfpr)
+    pfc_files = get_files_from_directory(args.folder_pfc)
     for f in trs_files_tcof:
         process_trs_file(folder_tcof + f, data)
     for f in trs_files_cfpp:
@@ -181,55 +283,33 @@ def create_corpus(folder_tcof, folder_cfpp, folder_ordeo, folder_cfpr, folder_pf
         process_pfc_file(folder_pfc + f, data)
     df = pd.DataFrame(data, columns=['file', 'text', 'start', 'end'])
 
-    create_clips_from_timecode(df, save_clips)
+    create_clips_from_timecode(df, args.save_clips)
     df = df[df.clips != '']
-    select_20_sentences_per_file(df)
-    df[['clips', 'text']].to_csv(
-        "/data/macairec/PhD/Grammaire/corpus/csv/corpus_grammar_selected_sentences_from_audio.csv", sep='\t',
-        index=False)
+    final_df = df.drop_duplicates()
+    final_df[['clips', 'text']].to_csv(args.save_dir + "corpus.csv", sep='\t', index=False)
 
 
-def select_20_sentences_per_file(df):
-    selected_phrases_list = []
-
-    grouped = df.groupby('file')
-
-    for file_name in df['file'].unique():
-        group_phrases = grouped.get_group(file_name)
-        shuffled_phrases = group_phrases.sample(frac=1).reset_index(drop=True)
-        selected = shuffled_phrases[
-            shuffled_phrases['text'].apply(lambda x: 1 < len(x.split()))
-        ]
-        # selected_phrases = selected.head(2)
-        selected_phrases_list.append(selected)
-
-    selected_df = pd.concat(selected_phrases_list, ignore_index=True)
-    new = selected_df.sample(frac=1).reset_index(drop=True)
-    final_df = new.drop_duplicates()
-    final_df[['clips', 'text']].to_csv(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/corpus_valibel.csv",
-        sep='\t',
-        index=False)
-
-
-def create_corpus_from_adrien(folder_ordeo):
+def create_corpus_from_orfeo(args):
+    """
+        Create a csv file with clip names and associated text, as well as a directory with clip files.
+    """
+    orfeo_dir = args.datadir
     data = []
-    orfeo_files = get_files_from_directory(folder_ordeo)
+    orfeo_files = get_files_from_directory(args.datadir)
     for f in orfeo_files:
-        process_orfeo_adrien(folder_ordeo + f, data)
+        process_orfeo_cleaned(orfeo_dir + f, data)
     df = pd.DataFrame(data, columns=['file', 'clips', 'text'])
     df = df[df.clips != '']
-    select_20_sentences_per_file(df)
-    # df[['clips', 'text']].to_csv(
-    #     "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/corpus/csv/corpus_cfpb.csv",
-    #     sep='\t',
-    #     index=False)
+    final_df = df.drop_duplicates()
+    final_df[['clips', 'text']].to_csv(args.save_dir + "corpus.csv", sep='\t', index=False)
 
 
-create_corpus_from_adrien(
-    "/run/user/1000/gvfs/sftp:host=dvorak0.lig,user=macairec/home/getalp/data/ASR_data/FR/CORPUS_AUDIO/cefc-orfeo_v.1.5_december2021/11/cleaned_v2/valibel/")
-
-# create_corpus("/data/macairec/PhD/Grammaire/corpus/data/tcof/", "/data/macairec/PhD/Grammaire/corpus/data/cfpp/",
-#               "/data/macairec/PhD/Grammaire/corpus/data/orfeo/",
-#               "/data/macairec/PhD/Grammaire/corpus/data/cfpr/", "/data/macairec/PhD/Grammaire/corpus/data/pfc/",
-#               "/data/macairec/PhD/Grammaire/corpus/clips/")
+parser = ArgumentParser(description="Create corpus for grammar.",
+                        formatter_class=RawTextHelpFormatter)
+parser.add_argument('--datadir', type=str, required=True,
+                    help="Directory where the data are stored")
+parser.add_argument('--save_dir', type=str, required=True,
+                    help="Directory to save the corpus.")
+parser.set_defaults(func=create_corpus_from_orfeo)
+args = parser.parse_args()
+args.func(args)

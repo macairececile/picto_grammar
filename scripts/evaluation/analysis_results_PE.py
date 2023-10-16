@@ -4,7 +4,6 @@ import math
 import os
 from os import listdir
 from os.path import isfile, join
-
 from grammar import *
 import evaluate
 
@@ -205,55 +204,56 @@ def score_between_annotators(df, corpus_name):
     print("-------------------")
 
 
-# def kappa_coefficient(annotations_1, annotations_2):
-#     kappas = []
-#     for i, annot in enumerate(annotations_1):
-#         annotator_1_counts = {}
-#         annotator_2_counts = {}
-#         for annotation in annot:
-#             annotator_1_counts[annotation] = annotator_1_counts.get(annotation, 0) + 1
-#
-#         for annotation in annotations_2[i]:
-#             annotator_2_counts[annotation] = annotator_2_counts.get(annotation, 0) + 1
-#             # Créer une liste contenant tous les mots uniques dans les deux annotations
-#         words = list(set(list(annotator_1_counts.keys()) + list(annotator_2_counts.keys())))
-#         matrix = {'mot': [], 'annot1': [], 'annot2': []}
-#         for w in words:
-#             if w not in annotator_1_counts.keys():
-#                 annotator_1_counts[w] = 0
-#             if w not in annotator_2_counts.keys():
-#                 annotator_2_counts[w] = 0
-#             matrix['mot'].append(w)
-#             matrix['annot1'].append(annotator_1_counts[w])
-#             matrix['annot2'].append(annotator_2_counts[w])
-#
-#         total_annotations = sum(matrix['annot1']) + sum(matrix['annot2'])
-#         agreements = sum(min(matrix['annot1'][i], matrix['annot2'][i]) for i in range(len(matrix['mot'])))
-#         total_annot1 = sum(matrix['annot1'])
-#         P_o = agreements / sum(matrix['annot1'])
-#         total_annot2 = sum(matrix['annot2'])
-#         P_e = (total_annot1 / total_annotations) * (total_annot2 / total_annotations)
-#         kappa = (P_o - P_e) / (1 - P_e)
-#         kappas.append(kappa)
-#     print(kappas)
-#     return kappas
-
-
-# def calculate_kappa_coef(df):
-#     kappa = 0
-#     annotator_1 = []
-#     annotator_2 = []
-#     grouped_df = df.groupby('text')
-#     for text, group in grouped_df:
-#         if group['user'].nunique() > 1:
-#             for i, row in group.iterrows():
-#                 if row['user'] == "cécile":
-#                     annotator_1.append(row['pictos_annot_token'])
-#                 if row['user'] == "chloé":
-#                     annotator_2.append(row['pictos_annot_token'])
-#     if annotator_1 and annotator_2:
-#         kappa = kappa_coefficient(annotator_1, annotator_2)
-#     return kappa
+def inter_annotator_aggrement(df, corpus_name):
+    judges_agreed_to_include = 0
+    judges_agreed_to_exclude = 0
+    cecile_agreed_to_include = 0
+    chloe_agreed_to_include = 0
+    if corpus_name:
+        by_corpus = df.loc[df['corpus_name'] == corpus_name]
+        grouped_df = by_corpus.groupby('text')
+    else:
+        by_corpus = df
+        grouped_df = by_corpus.groupby('text')
+    for text, group in grouped_df:
+        if group['user'].nunique() > 1:
+            cecile = ''
+            chloe = ''
+            ref = ''
+            for i, row in group.iterrows():
+                ref = ' '.join(row['pictos_grammar_tokens'])
+                if row['user'] == "cécile":
+                    cecile = ' '.join(row['pictos_annot_token'])
+                if row['user'] == "chloé":
+                    chloe = ' '.join(row['pictos_annot_token'])
+            if ref != '' and cecile != '' and chloe != '':
+                if ref == cecile and ref == chloe:
+                    judges_agreed_to_include += 1
+                elif ref != cecile and ref != chloe:
+                    judges_agreed_to_exclude += 1
+                elif ref == cecile and ref != chloe:
+                    cecile_agreed_to_include += 1
+                elif ref == chloe and ref != cecile:
+                    chloe_agreed_to_include += 1
+    percentage_agreement = (judges_agreed_to_include + judges_agreed_to_exclude) / (
+                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)
+    percentage_yes = ((chloe_agreed_to_include + judges_agreed_to_include) / (
+                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)) * (
+                                 (cecile_agreed_to_include + judges_agreed_to_include) / (
+                                     judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include))
+    percentage_no = ((cecile_agreed_to_include + judges_agreed_to_exclude) / (
+                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)) * (
+                                (chloe_agreed_to_include + judges_agreed_to_exclude) / (
+                                    judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include))
+    p_e = percentage_yes + percentage_no
+    p_o = percentage_agreement
+    cohen_kappa = round((p_e - p_o) / (1 - p_e),2)
+    # print("Include : ", str(judges_agreed_to_include))
+    # print("Exclude : ", str(judges_agreed_to_exclude))
+    # print("Include cecile : ", str(cecile_agreed_to_include))
+    # print("Include chloe : ", str(chloe_agreed_to_include))
+    print("Percentage of agreement : ", str(percentage_agreement))
+    print("Cohen's Kappa : ", str(cohen_kappa))
 
 
 def get_different_annotation_html_file(dataframe, html_file):
@@ -338,25 +338,31 @@ def analysis(json_folder, json_input, lexique, corpus_name=None):
     for f in json_post_edit_files:
         create_data_for_analysis(json_folder + f, lexique, df, sentences, pictos, names)
     df.to_csv("orfeo_PE_data.csv", index=False, header=True, sep='\t')
-    wer_scores = term_error_rate(df, corpus_name)
-    bleu_scores = term_bleu(df, corpus_name)
-    meteor_scores = term_meteor(df, corpus_name)
-    ter_scores = term_ter(df, corpus_name)
-    score_between_annotators(df, corpus_name)
-    print_automatic_eval(bleu_scores, wer_scores, meteor_scores, ter_scores)
-
-    create_html_with_differences(df, html_file)
-    create_html_with_correct_sentences(df, html_file_2)
+    # wer_scores = term_error_rate(df, corpus_name)
+    # bleu_scores = term_bleu(df, corpus_name)
+    # meteor_scores = term_meteor(df, corpus_name)
+    # ter_scores = term_ter(df, corpus_name)
+    # score_between_annotators(df, corpus_name)
+    # print_automatic_eval(bleu_scores, wer_scores, meteor_scores, ter_scores)
+    inter_annotator_aggrement(df, corpus_name)
+    # create_html_with_differences(df, html_file)
+    # create_html_with_correct_sentences(df, html_file_2)
 
 
 if __name__ == '__main__':
-    corpus_name = "valibel"
+    names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof", "tufs", "valibel"]
     # analysis(
     #     "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/"+corpus_name+"/",
     #     "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_"+corpus_name+".json",
     #     "/data/macairec/PhD/Grammaire/dico/lexique.csv",
     #     corpus_name)
-    analysis(
-        "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/all_output_orfeo/",
-        "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_orfeo.json",
-        "/data/macairec/PhD/Grammaire/dico/lexique.csv")
+    for i in range(0,12):
+        corpus_name = names[i]
+        print("Corpus name : ", corpus_name)
+        analysis(
+            "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/all_output_orfeo/",
+            "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_orfeo.json",
+            "/data/macairec/PhD/Grammaire/dico/lexique.csv",
+            corpus_name)
+        print("--------")
+
