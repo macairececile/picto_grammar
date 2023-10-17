@@ -15,20 +15,20 @@ import re
 from argparse import ArgumentParser, RawTextHelpFormatter
 
 
-def get_files_from_directory(dir):
+def get_files_from_directory(directory):
     """
         Get the files from a specific format in a directory.
 
         Arguments
         ---------
-        dir: str
+        directory: str
             Path of the folder.
 
         Returns
         -------
         A list of files.
     """
-    files = [f for f in listdir(dir) if isfile(join(dir, f)) if
+    files = [f for f in listdir(directory) if isfile(join(directory, f)) if
              '.trs' in f or '.orfeo' in f or '.TextGrid' in f or '.xml' in f]
     return files
 
@@ -272,15 +272,15 @@ def create_corpus(args):
     cfpr_files = get_files_from_directory(args.folder_cfpr)
     pfc_files = get_files_from_directory(args.folder_pfc)
     for f in trs_files_tcof:
-        process_trs_file(folder_tcof + f, data)
+        process_trs_file(args.folder_tcof + f, data)
     for f in trs_files_cfpp:
-        process_trs_file(folder_cfpp + f, data)
+        process_trs_file(args.folder_cfpp + f, data)
     for f in orfeo_files:
-        process_orfeo_file(folder_ordeo + f, data)
+        process_orfeo_file(args.folder_ordeo + f, data)
     for f in cfpr_files:
-        process_cfpr_file(folder_cfpr + f, data)
+        process_cfpr_file(args.folder_cfpr + f, data)
     for f in pfc_files:
-        process_pfc_file(folder_pfc + f, data)
+        process_pfc_file(args.folder_pfc + f, data)
     df = pd.DataFrame(data, columns=['file', 'text', 'start', 'end'])
 
     create_clips_from_timecode(df, args.save_clips)

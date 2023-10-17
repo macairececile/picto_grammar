@@ -2,7 +2,8 @@
 Script to run whisper and get predictions in a .txt file.
 You need to install whisper library to run this script.
 
-Example of use: python whisper_predictions --data 'corpus.csv' --save 'whisper_preds/' --clips 'corpus_clips/' --model 'large' --index 0
+Example of use: python whisper_predictions --data 'corpus.csv' --save 'whisper_preds/' --clips 'corpus_clips/'
+--model 'large' --index 0
 """
 
 import pandas as pd
@@ -31,14 +32,6 @@ def read_tsv(csv_file):
 def run_whisper_and_get_prediction(args):
     """
         Run a specific whisper model and save predictions in a .txt file.
-
-        Arguments
-        ---------
-        data: .csv file
-        model_name: str
-            Name of the whisper model ['small', 'base', 'medium', 'large']
-        index: int
-            Index to which sentence we start the predictions.
     """
     data = read_tsv(args.data)
     index = int(args.index)

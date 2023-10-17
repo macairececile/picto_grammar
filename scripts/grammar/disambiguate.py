@@ -1,3 +1,9 @@
+"""
+Script to disambiguate a text.
+You need to import a specific library to do so.
+
+"""
+
 from method.neural.NeuralDisambiguator import NeuralDisambiguator
 from ufsac.ufsac.core.Word import Word
 from ufsac.ufsac.core.Sentence import Sentence
@@ -6,7 +12,18 @@ from ufsac.common.XMLHelper import XMLHelper
 
 
 def load_wsd_model(path_model):
-    # WSD
+    """
+        Load a WSD model
+
+        Arguments
+        ---------
+        path_model: str
+            Path of the trained model.
+
+        Returns
+        -------
+        A neural disambiguator.
+    """
     lowercase = True
     clear_text = False
     batch_size = 1
@@ -14,25 +31,27 @@ def load_wsd_model(path_model):
     sense_compression_clusters = None
     wn = WordnetHelper.wn30()
     neural_disambiguator = NeuralDisambiguator(path_model + "data_wsd",
-                                                    [path_model + "model_weights_wsd0_camembert_base"],
-                                                    clear_text,
-                                                    batch_size, wn=wn, hf_model="camembert-base")
+                                               [path_model + "model_weights_wsd0_camembert_base"],
+                                               clear_text,
+                                               batch_size, wn=wn, hf_model="camembert-base")
     neural_disambiguator.lowercase_words = lowercase
     neural_disambiguator.filter_lemma = filter_lemma
     neural_disambiguator.reduced_output_vocabulary = sense_compression_clusters
     return neural_disambiguator
 
 
-# def linguistic_processing(sentence):
-#     """
-#         Function to clean the sentence (replace special characters)
-#         :param sentence: string
-#         :returns: cleaned sentence (str)
-#     """
-#     return sentence.replace("'", "' ").replace("-", " ")
-
-
 def processing(text):
+    """
+        Process the text before the disambiguation.
+
+        Arguments
+        ---------
+        text: list
+
+        Returns
+        -------
+        The processed sentence.
+    """
     sent = Sentence()
 
     for word in text:
@@ -44,10 +63,16 @@ def processing(text):
 def disambiguate(text, neural_disambiguator):
     """
         Function to disambiguate predicted hypothesis from asr model and store in dict
-        :param data_path: path of the data from the wsd model
-        :param weights: path of the wsd model
-        :param text: sentence from the asr output
-        :return disambiguate sentence
+
+        Arguments
+        ---------
+        neural_disambiguator: NeuralDisambiguator
+        text: list
+            Sentence to disambiguate
+
+        Returns
+        -------
+        The disambiguate sentence.
     """
     sentence = processing(text)
     neural_disambiguator.disambiguate_dynamic_sentence_batch(sentence, "wsd_test")

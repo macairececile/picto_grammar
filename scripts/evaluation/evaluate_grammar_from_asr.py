@@ -1,10 +1,18 @@
-#!/usr/bin/python
+"""
+Script to evaluate the grammar translation in pictograms from the ASR predictions.
 
-import math
+Example of use:
+    python evaluate_grammar_from_asr.py --eval_choice "all" --file_ref "whisper_results_small_grammar.csv"
+    --file_asr_grammar "corpus_all_grammar_pictos.csv"
+    python evaluate_grammar_from_asr.py --eval_choice "all" --file_ref "whisper_results_small_grammar.csv"
+    --file_asr_grammar "corpus_all_grammar_pictos.csv" --file_asr "whisper_results.csv"
+
+"""
 
 import numpy as np
 import pandas as pd
 import evaluate
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 bleu = evaluate.load("bleu")
 meteor = evaluate.load('meteor')
@@ -13,12 +21,18 @@ wer = evaluate.load('wer')
 pd.options.mode.chained_assignment = None
 
 
-def read_csv_files(file):
-    data = pd.read_csv(file, sep='\t')
-    return data
-
-
 def get_corpus_name(clip_name):
+    """
+        Get the corpus name.
+
+        Arguments
+        ---------
+        clip_name: str
+
+        Returns
+        -------
+        The clip name.
+    """
     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
              "tufs", "valibel"]
     for n in names:
@@ -27,12 +41,31 @@ def get_corpus_name(clip_name):
 
 
 def clean_data_asr(data_asr):
+    """
+        Clean the prediction from ASR.
+
+        Arguments
+        ---------
+        data_asr: dataframe
+    """
     for i, row in data_asr.iterrows():
         if isinstance(row['text'], float):
             row['tokens'] = ''
 
 
 def get_ref_pictos_and_tokens(data_asr, data_refs):
+    """
+        Get the associated reference sequence of pictograms and tokens from the ref data.
+
+        Arguments
+        ---------
+        data_asr: dataframe
+        data_refs: dataframe
+
+        Returns
+        ---------
+        The dataframe with ref picto + tokens + corpus_name per row.
+    """
     tokens_refs = []
     pictos_refs = []
     corpus_name = []
@@ -56,6 +89,18 @@ def get_ref_pictos_and_tokens(data_asr, data_refs):
 
 
 def get_ref_tokens_v2(clip_name, data_refs):
+    """
+        Get the associated reference sequence of pictograms and tokens from the ref data.
+
+        Arguments
+        ---------
+        clip_name: str
+        data_refs: dataframe
+
+        Returns
+        ---------
+        The token ref sequence.
+    """
     row_ref = data_refs.loc[data_refs['clips'] == clip_name]
     if row_ref.empty:
         return "to_delete"
@@ -64,6 +109,18 @@ def get_ref_tokens_v2(clip_name, data_refs):
 
 
 def compute_scores(data_asr, corpus_name=None):
+    """
+        Compute the scores to evaluate the translation from ASR + grammar with the translation ref from grammar.
+
+        Arguments
+        ---------
+        data_asr: dataframe
+        corpus_name: str
+
+        Returns
+        ---------
+        The BLEU, WER and METEOR scores.
+    """
     if corpus_name:
         by_corpus = data_asr.loc[data_asr['corpus_name'] == corpus_name]
     else:
@@ -85,52 +142,71 @@ def compute_scores(data_asr, corpus_name=None):
 
 
 def print_automatic_eval(bleu_score, term_error_rate_score, meteor_score):
+    """
+        Print the results from the evaluation.
+
+        Arguments
+        ---------
+        bleu_score: float
+        term_error_rate_score: float
+        meteor_score: float
+    """
     print("-------------------")
-    print("| BLEU  | METEOR | WER  |")
+    print("| BLEU  | METEOR | PER |")
     print("|----------------------------------|")
     print("| {:<5.3f} | {:<6.3f} | {:<4.1f} |".format(bleu_score, meteor_score, term_error_rate_score))
     print("-------------------")
 
 
 def evaluate(file_asr, file_ref):
-    data_asr = read_csv_files(file_asr)
+    """
+        Run the evaluation.
+
+        Arguments
+        ---------
+        file_asr: str
+        file_ref: str
+    """
+    data_asr = pd.read_csv(file_asr, sep='\t')
     clean_data_asr(data_asr)
-    data_refs = read_csv_files(file_ref)
+    data_refs = pd.read_csv(file_ref, sep='\t')
     data_asr = get_ref_pictos_and_tokens(data_asr, data_refs)
     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
              "tufs", "valibel"]
-    bleu_scores = []
-    wer_scores = []
-    meteor_scores = []
-    # for n in names:
-    #     bleu_score, wer_score, meteor_score = compute_scores(data_asr, n)
-    #     bleu_scores.append(bleu_score)
-    #     wer_scores.append(wer_score)
-    #     meteor_scores.append(meteor_score)
-    # print("Bleu : ", str(bleu_scores))
-    # print("Meteor : ", str(meteor_scores))
-    # print("WER : ", str(wer_scores))
+    for n in names:
+        print("Score for the corpus " + n + ": ")
+        bleu_score, wer_score, meteor_score = compute_scores(data_asr, n)
+        print_automatic_eval(bleu_score, wer_score, meteor_score)
     bleu_score, wer_score, meteor_score = compute_scores(data_asr)
-    print("Score for all : ")
+    print("Score all corpus: ")
     print_automatic_eval(bleu_score, wer_score, meteor_score)
 
 
-def read_data_and_select_from_wer_scores(data_asr, data_asr_grammar, data_ref):
-    print("Size all dataset : ", len(data_asr))
+def select_by_wer_scores(data_asr, data_asr_grammar, data_ref):
+    """
+        Select the data from a specific ASR WER range before running the evaluation.
+
+        Arguments
+        ---------
+        data_asr: dataframe
+        data_asr_grammar: dataframe
+        data_ref: dataframe
+    """
+    print("Size of the dataset : ", len(data_asr))
     ints = [i for i in range(0, 51, 10)]
-    id = 0
+    identifier = 0
     for i in np.arange(0, 0.51, 0.10):
-        if id < 5:
+        if identifier < 5:
             df_by_wer = data_asr[(data_asr['wer'] >= i) & (data_asr['wer'] < i + 0.10)]
             print("Size subdataset : ", len(df_by_wer))
-            print("For WER between " + str(ints[id]) + " and " + str(ints[id] + 10) + " : ")
+            print("For WER between " + str(ints[identifier]) + " and " + str(ints[identifier] + 10) + " : ")
         else:
             df_by_wer = data_asr[data_asr['wer'] >= i]
             print("Size subdataset : ", len(df_by_wer))
-            print("For WER sup of  " + str(ints[id]) + " : ")
+            print("For WER sup of  " + str(ints[identifier]) + " : ")
         ref_tokens = []
         tokens = []
-        for i, row in df_by_wer.iterrows():
+        for t, row in df_by_wer.iterrows():
             infos_grammar = data_asr_grammar.loc[data_asr_grammar['clips'] == row['clips']]
             tokens_pred = infos_grammar["tokens"].values[0]
             tokens.append(tokens_pred)
@@ -140,20 +216,43 @@ def read_data_and_select_from_wer_scores(data_asr, data_asr_grammar, data_ref):
         final_data = df_by_wer[df_by_wer.ref_tokens != 'to_delete']
         bleu_score, wer_score, meteor_score = compute_scores(final_data)
         print_automatic_eval(bleu_score, wer_score, meteor_score)
-        id += 1
+        identifier += 1
 
 
 def evaluate_by_wer(file_asr, file_asr_grammar, file_ref):
-    data_asr = read_csv_files(file_asr)
-    data_asr_grammar = read_csv_files(file_asr_grammar)
-    data_refs = read_csv_files(file_ref)
+    """
+        Evaluate by ASR WER range.
+
+        Arguments
+        ---------
+        file_asr: str
+        file_asr_grammar: str
+        file_ref: str
+    """
+    data_asr = pd.read_csv(file_asr, sep='\t')
+    data_asr_grammar = pd.read_csv(file_asr_grammar, sep='\t')
+    data_refs = pd.read_csv(file_ref, sep='\t')
     clean_data_asr(data_asr_grammar)
-    read_data_and_select_from_wer_scores(data_asr, data_asr_grammar, data_refs)
+    select_by_wer_scores(data_asr, data_asr_grammar, data_refs)
 
 
-if __name__ == '__main__':
-    # evaluate("/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_medium_grammar.csv",
-    #          "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
-    evaluate_by_wer("/data/macairec/PhD/Grammaire/exps_speech/whisper/large/whisper_results.csv",
-                    "/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_large_grammar.csv",
-                    "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
+def main(args):
+    if args.eval_choice == "all":
+        evaluate(args.file_asr_grammar, args.file_ref)
+    elif args.eval_choice == "wer":
+        evaluate_by_wer(args.file_asr, args.file_asr_grammar, args.file_ref)
+
+
+parser = ArgumentParser(description="Evaluate the grammar from ASR predictions.",
+                        formatter_class=RawTextHelpFormatter)
+parser.add_argument('--eval_choice', type=str, required=True, choices=["all", "wer"],
+                    help="")
+parser.add_argument('--file_ref', type=str, required=True,
+                    help="")
+parser.add_argument('--file_asr_grammar', type=str, required=True,
+                    help="")
+parser.add_argument('--file_asr', type=str, required=False,
+                    help="")
+parser.set_defaults(func=main)
+args = parser.parse_args()
+args.func(args)

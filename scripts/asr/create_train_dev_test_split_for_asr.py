@@ -67,10 +67,6 @@ def shuffle_and_split(corpus_name, dataframe):
 def create_train_dev_test(args):
     """
         Full pipeline to create train, dev, test sets from csv files with data.
-
-        Arguments
-        ---------
-        path_files: path of the data files.
     """
     files = get_files_csv_from_directory(args.files)
     splits_train, splits_valid, splits_test = [], [], []

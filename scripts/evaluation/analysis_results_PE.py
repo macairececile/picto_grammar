@@ -1,28 +1,54 @@
-#!/usr/bin/python
+"""
+Script to analysis the Post-edition results.
 
+Example of use: python analysis_results_PE.py --json_PE_dir '/outputPE/' --json_init 'sentences_to_PE.json'
+--lexicon 'lexique.csv'
+"""
+
+from scripts.grammar.grammar import *
+from scripts.grammar.print_sentences_from_grammar import *
 import math
 import os
 from os import listdir
 from os.path import isfile, join
-from grammar import *
 import evaluate
+import json
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 bleu = evaluate.load("bleu")
 meteor = evaluate.load('meteor')
 wer = evaluate.load('wer')
 ter = evaluate.load('ter')
 
-from statistics import mean
-
-from print_sentences_from_grammar import *
-
 
 def get_json_from_post_edit(folder):
+    """
+        Get json files from a directory.
+
+        Arguments
+        ---------
+        folder: str
+
+        Returns
+        -------
+        The list of json files.
+    """
     files = [f for f in listdir(folder) if isfile(join(folder, f)) if '.json' in f]
     return files
 
 
 def read_json_input(json_input_file):
+    """
+        Read the content of the json file.
+
+        Arguments
+        ---------
+        json_input_file: str
+
+        Returns
+        -------
+        The sentences, pictos, and corpus_name.
+    """
     with open(json_input_file) as f:
         data = json.load(f)
         sentences = [item['sentence'] for item in data]
@@ -32,6 +58,17 @@ def read_json_input(json_input_file):
 
 
 def read_json_output(json_output_file):
+    """
+        Read the content of the json file generated after the post-edition.
+
+        Arguments
+        ---------
+        json_output_file: str
+
+        Returns
+        -------
+        The sentences, pictos, and user name.
+    """
     with open(json_output_file) as f:
         data = json.load(f)
         sentence = data["document"]["text"]
@@ -41,6 +78,21 @@ def read_json_output(json_output_file):
 
 
 def get_input_picto_from_text(text, sentences, pictos, corpus_name, file_post_edit):
+    """
+        Get the reference picto sequence of the post-edit sentence.
+
+        Arguments
+        ---------
+        text: str
+        sentences: list
+        pictos: list
+        corpus_name: list
+        file_post_edit: str
+
+        Returns
+        -------
+        The sequence of pictos, and the name of the corpus
+    """
     try:
         index = sentences.index(text)
         if pictos[index] == ['']:
@@ -52,11 +104,23 @@ def get_input_picto_from_text(text, sentences, pictos, corpus_name, file_post_ed
         return []
 
 
-def get_token_from_id_pictos(pictos, lexique):
+def get_token_from_id_pictos(pictos, lexicon):
+    """
+        Get the token associated to each pictogram from the lexicon.
+
+        Arguments
+        ---------
+        pictos: list
+        lexicon: dataframe
+
+        Returns
+        -------
+        A list with the associated tokens.
+    """
     terms = []
     if not pictos == [''] and not pictos == []:
         for p in pictos:
-            term = lexique.loc[lexique['id_picto'] == int(p)]["lemma"].tolist()
+            term = lexicon.loc[lexicon['id_picto'] == int(p)]["lemma"].tolist()
             if not term:
                 terms.append('_')
             else:
@@ -70,11 +134,23 @@ def get_token_from_id_pictos(pictos, lexique):
     return terms
 
 
-def create_data_for_analysis(file_post_edit, lexique, dataframe, sentences, pictos, corpus_name):
+def create_data_for_analysis(file_post_edit, lexicon, dataframe, sentences, pictos, corpus_name):
+    """
+        Gather all the information to evaluate the post-edition.
+
+        Arguments
+        ---------
+        file_post_edit: str
+        lexicon: dataframe
+        dataframe: dataframe
+        sentences: list
+        pictos: list
+        corpus_name: list
+    """
     text, pictos_annot, user = read_json_output(file_post_edit)
     pictos_grammar, name = get_input_picto_from_text(text, sentences, pictos, corpus_name, file_post_edit)
-    pictos_grammar_tokens = get_token_from_id_pictos(pictos_grammar, lexique)
-    pictos_annot_token = get_token_from_id_pictos(pictos_annot, lexique)
+    pictos_grammar_tokens = get_token_from_id_pictos(pictos_grammar, lexicon)
+    pictos_annot_token = get_token_from_id_pictos(pictos_annot, lexicon)
     add_info = {'file': file_post_edit, 'time': os.path.getmtime(file_post_edit), 'user': user, 'text': text,
                 'pictos_grammar': pictos_grammar, 'pictos_annot': pictos_annot,
                 'pictos_grammar_tokens': pictos_grammar_tokens, 'pictos_annot_token': pictos_annot_token,
@@ -82,68 +158,19 @@ def create_data_for_analysis(file_post_edit, lexique, dataframe, sentences, pict
     dataframe.loc[len(dataframe), :] = add_info
 
 
-def term_error_rate(dataframe, corpus_name):
-    wer_scores = {}
-    if corpus_name:
-        by_corpus = dataframe.loc[dataframe['corpus_name'] == corpus_name]
-        print(by_corpus)
-        grouped = by_corpus.groupby('user').groups.values()
-    else:
-        by_corpus = dataframe
-        grouped = by_corpus.groupby('user').groups.values()
-    for user in grouped:
-        references = []
-        predictions = []
-        username = by_corpus.loc[user[0]]["user"]
-        for i in user:
-            references.append(' '.join(by_corpus.loc[i]["pictos_grammar_tokens"]))
-            predictions.append(' '.join(by_corpus.loc[i]["pictos_annot_token"]))
-        results = wer.compute(predictions=predictions, references=references)
-        wer_scores[username] = round(results, 3) * 100
-    return wer_scores
-
-
-def term_bleu(dataframe, corpus_name):
-    bleu_scores = {}
-    if corpus_name:
-        by_corpus = dataframe.loc[dataframe['corpus_name'] == corpus_name]
-        grouped = by_corpus.groupby('user').groups.values()
-    else:
-        by_corpus = dataframe
-        grouped = by_corpus.groupby('user').groups.values()
-    for user in grouped:
-        references = []
-        predictions = []
-        username = by_corpus.loc[user[0]]["user"]
-        for i in user:
-            references.append([' '.join(by_corpus.loc[i]["pictos_grammar_tokens"])])
-            predictions.append(' '.join(by_corpus.loc[i]["pictos_annot_token"]))
-        results = bleu.compute(predictions=predictions, references=references)
-        bleu_scores[username] = round(results["bleu"], 3)
-    return bleu_scores
-
-
-def term_meteor(dataframe, corpus_name):
-    meteor_scores = {}
-    if corpus_name:
-        by_corpus = dataframe.loc[dataframe['corpus_name'] == corpus_name]
-        grouped = by_corpus.groupby('user').groups.values()
-    else:
-        by_corpus = dataframe
-        grouped = by_corpus.groupby('user').groups.values()
-    for user in grouped:
-        references = []
-        predictions = []
-        username = by_corpus.loc[user[0]]["user"]
-        for i in user:
-            references.append(' '.join(by_corpus.loc[i]["pictos_grammar_tokens"]))
-            predictions.append(' '.join(by_corpus.loc[i]["pictos_annot_token"]))
-        results = meteor.compute(predictions=predictions, references=references)
-        meteor_scores[username] = round(results["meteor"], 3)
-    return meteor_scores
-
-
 def term_ter(dataframe, corpus_name):
+    """
+        Calculate the Picto Error Rate (PER) between the two annotators.
+
+        Arguments
+        ---------
+        dataframe: dataframe
+        corpus_name: str
+
+        Returns
+        -------
+        The list of PER scores for each post-edit sentence.
+    """
     ter_scores = {}
     if corpus_name:
         by_corpus = dataframe.loc[dataframe['corpus_name'] == corpus_name]
@@ -163,17 +190,31 @@ def term_ter(dataframe, corpus_name):
     return ter_scores
 
 
-def print_automatic_eval(bleu_scores, term_error_rate_score, meteor_score, ter_score):
+def print_automatic_eval(ter_score):
+    """
+        Print the evaluation.
+
+        Arguments
+        ---------
+        ter_score: dict
+    """
     print("-------------------")
-    print("| User     | BLEU  | METEOR | WER  | TER |")
+    print("| User     | TER |")
     print("|----------------------------------|")
-    for k, v in bleu_scores.items():
-        print("| {:<8s} | {:<5.3f} | {:<6.3f} | {:<4.1f} | {:<5.3f} |".format(k, v, meteor_score[k],
-                                                                              term_error_rate_score[k], ter_score[k]))
+    for k, v in ter_score.items():
+        print("| {:<8s} | {:<5.3f} |".format(k, v, ter_score[k]))
     print("-------------------")
 
 
 def score_between_annotators(df, corpus_name):
+    """
+        Print the evaluation between annotators.
+
+        Arguments
+        ---------
+        df: dataframe
+        corpus_name: str
+    """
     references = []
     predictions = []
     if corpus_name:
@@ -184,31 +225,36 @@ def score_between_annotators(df, corpus_name):
         grouped_df = by_corpus.groupby('text')
     for text, group in grouped_df:
         if group['user'].nunique() > 1:
-            add_cecile = False
-            add_chloe = False
+            add_expert1 = False
+            add_expert2 = False
             for i, row in group.iterrows():
-                if row['user'] == "cécile" and not add_cecile:
+                if row['user'] == "1" and not add_expert1:
                     references.append(' '.join(row['pictos_annot_token']))
-                    add_cecile = True
-                if row['user'] == "chloé" and not add_chloe:
+                    add_expert1 = True
+                if row['user'] == "2" and not add_expert2:
                     predictions.append(' '.join(row['pictos_annot_token']))
-                    add_chloe = True
-    wer_score = round(wer.compute(predictions=predictions, references=references), 3) * 100
-    meteor_score = round(meteor.compute(predictions=predictions, references=references)["meteor"], 3)
-    bleu_score = round(bleu.compute(predictions=predictions, references=[[i] for i in references])["bleu"], 3)
+                    add_expert2 = True
     ter_score = ter.compute(predictions=predictions, references=[[i] for i in references])["score"]
     print("-------------------")
-    print("| BLEU  | METEOR | WER  | TER |")
-    print("|----------------------------------|")
-    print("| {:<5.3f} | {:<6.3f} | {:<4.1f} | {:<5.3f} |".format(bleu_score, meteor_score, wer_score, ter_score))
+    print("| TER |")
+    print("|-----|")
+    print("| {:<5.3f} |".format(ter_score))
     print("-------------------")
 
 
 def inter_annotator_aggrement(df, corpus_name):
+    """
+        Calculate the inter-annotator agreement.
+
+        Arguments
+        ---------
+        df: dataframe
+        corpus_name: str
+    """
     judges_agreed_to_include = 0
     judges_agreed_to_exclude = 0
-    cecile_agreed_to_include = 0
-    chloe_agreed_to_include = 0
+    expert1_agreed_to_include = 0
+    expert2_agreed_to_include = 0
     if corpus_name:
         by_corpus = df.loc[df['corpus_name'] == corpus_name]
         grouped_df = by_corpus.groupby('text')
@@ -232,31 +278,35 @@ def inter_annotator_aggrement(df, corpus_name):
                 elif ref != cecile and ref != chloe:
                     judges_agreed_to_exclude += 1
                 elif ref == cecile and ref != chloe:
-                    cecile_agreed_to_include += 1
+                    expert1_agreed_to_include += 1
                 elif ref == chloe and ref != cecile:
-                    chloe_agreed_to_include += 1
+                    expert2_agreed_to_include += 1
     percentage_agreement = (judges_agreed_to_include + judges_agreed_to_exclude) / (
-                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)
-    percentage_yes = ((chloe_agreed_to_include + judges_agreed_to_include) / (
-                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)) * (
-                                 (cecile_agreed_to_include + judges_agreed_to_include) / (
-                                     judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include))
-    percentage_no = ((cecile_agreed_to_include + judges_agreed_to_exclude) / (
-                judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include)) * (
-                                (chloe_agreed_to_include + judges_agreed_to_exclude) / (
-                                    judges_agreed_to_include + judges_agreed_to_exclude + chloe_agreed_to_include + cecile_agreed_to_include))
+            judges_agreed_to_include + judges_agreed_to_exclude + expert2_agreed_to_include + expert1_agreed_to_include)
+    percentage_yes = ((expert2_agreed_to_include + judges_agreed_to_include) / (
+            judges_agreed_to_include + judges_agreed_to_exclude + expert2_agreed_to_include + expert1_agreed_to_include)) * (
+                             (expert1_agreed_to_include + judges_agreed_to_include) / (
+                             judges_agreed_to_include + judges_agreed_to_exclude + expert2_agreed_to_include + expert1_agreed_to_include))
+    percentage_no = ((expert1_agreed_to_include + judges_agreed_to_exclude) / (
+            judges_agreed_to_include + judges_agreed_to_exclude + expert2_agreed_to_include + expert1_agreed_to_include)) * (
+                            (expert2_agreed_to_include + judges_agreed_to_exclude) / (
+                            judges_agreed_to_include + judges_agreed_to_exclude + expert2_agreed_to_include + expert1_agreed_to_include))
     p_e = percentage_yes + percentage_no
     p_o = percentage_agreement
-    cohen_kappa = round((p_e - p_o) / (1 - p_e),2)
-    # print("Include : ", str(judges_agreed_to_include))
-    # print("Exclude : ", str(judges_agreed_to_exclude))
-    # print("Include cecile : ", str(cecile_agreed_to_include))
-    # print("Include chloe : ", str(chloe_agreed_to_include))
+    cohen_kappa = round((p_e - p_o) / (1 - p_e), 2)
     print("Percentage of agreement : ", str(percentage_agreement))
     print("Cohen's Kappa : ", str(cohen_kappa))
 
 
 def get_different_annotation_html_file(dataframe, html_file):
+    """
+        Add to the html file post-edition that are different between annotators.
+
+        Arguments
+        ---------
+        dataframe: dataframe
+        html_file: file
+    """
     grouped_df = dataframe.groupby('text')
     for text, group in grouped_df:
         if group['user'].nunique() > 1:
@@ -276,6 +326,14 @@ def get_different_annotation_html_file(dataframe, html_file):
 
 
 def get_same_annotation_html_file_no_PE(dataframe, html_file):
+    """
+        Add to the html file post-edition that are the same between annotators.
+
+        Arguments
+        ---------
+        dataframe: dataframe
+        html_file: file
+    """
     grouped_df = dataframe.groupby('text')
     for text, group in grouped_df:
         if group['user'].nunique() > 1:
@@ -293,6 +351,14 @@ def get_same_annotation_html_file_no_PE(dataframe, html_file):
 
 
 def create_html_with_differences(dataframe, html_file):
+    """
+        Create the html file with different post-edition.
+
+        Arguments
+        ---------
+        dataframe: dataframe
+        html_file: file
+    """
     html = create_html_file(html_file)
     html.write("<div class = \"container-fluid\">")
     get_different_annotation_html_file(dataframe, html)
@@ -301,6 +367,14 @@ def create_html_with_differences(dataframe, html_file):
 
 
 def create_html_with_correct_sentences(df, html_file):
+    """
+        Create the html file with same post-edition.
+
+        Arguments
+        ---------
+        df: dataframe
+        html_file: file
+    """
     html = create_html_file(html_file)
     html.write("<div class = \"container-fluid\">")
     get_same_annotation_html_file_no_PE(df, html)
@@ -309,6 +383,14 @@ def create_html_with_correct_sentences(df, html_file):
 
 
 def write_differences_to_html(html_file, row):
+    """
+        Add to the html file the row with different annotations.
+
+        Arguments
+        ---------
+        html_file: file
+        row: dataframe
+    """
     for i, p in enumerate(row['pictos_annot']):
         html_file.write(
             "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
@@ -318,6 +400,14 @@ def write_differences_to_html(html_file, row):
 
 
 def write_reference_picto(html_file, row):
+    """
+        Add to the html file the reference sentence.
+
+        Arguments
+        ---------
+        html_file: file
+        row: dataframe
+    """
     for i, p in enumerate(row['pictos_grammar']):
         html_file.write(
             "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
@@ -326,10 +416,20 @@ def write_reference_picto(html_file, row):
             row['pictos_grammar_tokens'][i] + "</figcaption></figure>")
 
 
-def analysis(json_folder, json_input, lexique, corpus_name=None):
-    html_file = "/data/macairec/PhD/Grammaire/corpus/analysis_PE/orfeo/dif.html"
-    html_file_2 = "/data/macairec/PhD/Grammaire/corpus/analysis_PE/orfeo/same.html"
-    lexique = read_lexique(lexique)
+def analysis(json_folder, json_input, lexicon, corpus_name=None):
+    """
+        Analysis of the post-edition.
+
+        Arguments
+        ---------
+        json_folder: str
+        json_input: str
+        lexicon: str
+        corpus_name: str
+    """
+    html_same = "same.html"
+    html_dif = "dif.html"
+    lexique = read_lexique(lexicon)
     json_post_edit_files = get_json_from_post_edit(json_folder)
     df = pd.DataFrame(
         columns=['file', 'time', 'user', 'text', 'pictos_grammar', 'pictos_annot', 'pictos_grammar_tokens',
@@ -338,31 +438,35 @@ def analysis(json_folder, json_input, lexique, corpus_name=None):
     for f in json_post_edit_files:
         create_data_for_analysis(json_folder + f, lexique, df, sentences, pictos, names)
     df.to_csv("orfeo_PE_data.csv", index=False, header=True, sep='\t')
-    # wer_scores = term_error_rate(df, corpus_name)
-    # bleu_scores = term_bleu(df, corpus_name)
-    # meteor_scores = term_meteor(df, corpus_name)
-    # ter_scores = term_ter(df, corpus_name)
-    # score_between_annotators(df, corpus_name)
-    # print_automatic_eval(bleu_scores, wer_scores, meteor_scores, ter_scores)
+    ter_scores = term_ter(df, corpus_name)
+    score_between_annotators(df, corpus_name)
+    print_automatic_eval(ter_scores)
     inter_annotator_aggrement(df, corpus_name)
-    # create_html_with_differences(df, html_file)
-    # create_html_with_correct_sentences(df, html_file_2)
+    create_html_with_correct_sentences(df, html_same)
+    create_html_with_differences(df, html_dif)
 
 
-if __name__ == '__main__':
-    names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof", "tufs", "valibel"]
-    # analysis(
-    #     "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/"+corpus_name+"/",
-    #     "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_"+corpus_name+".json",
-    #     "/data/macairec/PhD/Grammaire/dico/lexique.csv",
-    #     corpus_name)
-    for i in range(0,12):
-        corpus_name = names[i]
-        print("Corpus name : ", corpus_name)
+def main(args):
+    names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
+             "tufs", "valibel"]
+    for i in names:
+        print("Corpus name: ", i)
         analysis(
-            "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/all_output_orfeo/",
-            "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_orfeo.json",
-            "/data/macairec/PhD/Grammaire/dico/lexique.csv",
-            corpus_name)
+            args.json_PE_dir,
+            args.json_init,
+            args.lexicon,
+            i)
         print("--------")
 
+
+parser = ArgumentParser(description="Post-edition analysis.",
+                        formatter_class=RawTextHelpFormatter)
+parser.add_argument('--json_PE_dir', type=str, required=True,
+                    help="")
+parser.add_argument('--json_init', type=str, required=True,
+                    help="")
+parser.add_argument('--lexicon', type=str, required=True,
+                    help="")
+parser.set_defaults(func=main)
+args = parser.parse_args()
+args.func(args)
