@@ -101,9 +101,9 @@ def add_value(id_picto, lemma, synsets, sense_keys, row, df_wn, val):
     index = [i for i, x in enumerate(id_picto) if x == row["idpicto"]]
     added = False
     for i in index:
-        if val in lemma[i]:
+        if val == lemma[i]:
             synsets[i].append(row["synset2"])
-            sense_keys[i].append(get_sense_keys(df_wn, [row["synset2"]]))
+            sense_keys[i] = list(set(sense_keys[i] + get_sense_keys(df_wn, [row["synset2"]])))
             return ""
     if not added:
         id_picto.append(row["idpicto"])
@@ -131,7 +131,7 @@ def create_common_lexique(data_arasaac, data_dicopicto, df_wn):
     synsets = []
     sense_keys = []
     id_picto.extend(data_dicopicto["id_picto"].tolist())
-    lemma.extend(data_dicopicto["keyword_proc"].tolist())
+    lemma.extend(data_dicopicto["keyword_no_cat"].tolist())
     synsets.extend(data_dicopicto["synsets"].tolist())
     sense_keys.extend(data_dicopicto["sense_keys"].tolist())
     for i, row in data_arasaac.iterrows():
@@ -276,10 +276,10 @@ def create_final_lexicon(file_arasaac, dicopicto_file, wn_file, outfile):
 
 def lexicon():
     create_final_lexicon(
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/dicoPicto_v2_5_12_2023_11h.csv",
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/index.sense",
-        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique_5_12_2023_11h.csv")
+        "/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",
+        "/data/macairec/PhD/Grammaire/dico/dicoPicto_v2_5_12_2023_11h.csv",
+        "/data/macairec/PhD/Grammaire/dico/index.sense",
+        "/data/macairec/PhD/Grammaire/dico/lexique_5_12_2023_11h.csv")
 
 
 if __name__ == '__main__':

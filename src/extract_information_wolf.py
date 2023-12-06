@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import pandas as pd
 
+
 def read_wolf_data(file):
     # Charger le fichier XML
     tree = ET.parse(file)
@@ -16,12 +17,15 @@ def read_wolf_data(file):
         # Extraire le contenu de la balise ID
         synset_id = synset.find('./ID').text.split("eng-30-")[1]
 
+        hypernyms = [ilr.text.split("eng-30-")[1] for ilr in synset.findall('./ILR[@type="hypernym"]')]
+
         # derivatives = [ilr.text.split("eng-30-")[1] for ilr in synset.findall('./ILR[@type="eng_derivative"]')]
         if literal != "_EMPTY_":
             if literal not in wolf_data.keys():
-                wolf_data[literal] = [synset_id]
+                wolf_data[literal] = [synset_id] + hypernyms
             else:
                 wolf_data[literal].append(synset_id)
+                wolf_data[literal].extend(hypernyms)
             # if derivatives:
             #     wolf_data[literal] = [synset_id] + derivatives
             # else:
@@ -80,15 +84,14 @@ def keep_relevant_sense_keys(sense_keys, pos):
     for sense in sense_keys:
         sense_pos = int(sense.split("%")[1].split(":")[0])
         pos_synset = get_pos_synset(sense_pos)
-        if pos_synset == '-'+pos:
+        if pos_synset == '-' + pos:
             clean_senses.append(sense)
     return clean_senses
 
 
-
 def get_sense_keys_from_synsets_wolf(wolf_data, data_wn30):
     f = open("wolf_data.txt", "w")
-    for k,v in wolf_data.items():
+    for k, v in wolf_data.items():
         senses = []
         for s in v:
             sense = s.split('-')[0]
@@ -104,9 +107,6 @@ def process_wolf(wolf_file, wn30_file):
     data_wn30 = parse_wn30_file(wn30_file)
     get_sense_keys_from_synsets_wolf(wolf_data, data_wn30)
 
+
 if __name__ == '__main__':
-    process_wolf("/home/cecilemacaire/wolf.xml", "/home/cecilemacaire/index_wn_30.sense")
-
-
-
-
+    process_wolf("/data/macairec/PhD/Grammaire/dico/wolf.xml", "/data/macairec/PhD/Grammaire/dico/index_wn_30.sense")
