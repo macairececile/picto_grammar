@@ -274,10 +274,18 @@ def create_final_lexicon(file_arasaac, dicopicto_file, wn_file, outfile):
                          sep='\t', index=False)
 
 
-# def lexicon(args):
-#     create_final_lexicon(args.arasaac_file, args.dicoPicto, args.wn_file, args.out)
-#
-#
+def lexicon():
+    create_final_lexicon(
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/dicoPicto_v2_5_12_2023_11h.csv",
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/index.sense",
+        "/run/user/1000/gvfs/sftp:host=dracon3.lig,user=macairec/data/macairec/PhD/Grammaire/dico/lexique_5_12_2023_11h.csv")
+
+
+if __name__ == '__main__':
+    lexicon()
+
+
 # parser = ArgumentParser(description="Generate the lexicon",
 #                         formatter_class=RawTextHelpFormatter)
 # parser.add_argument('--arasaac_file', type=str, required=True,
