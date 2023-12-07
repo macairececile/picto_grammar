@@ -37,26 +37,30 @@ def read_lexique(lexicon):
 
 
 def create_lexicon_from_wolf(wolf_data, lexicon):
-    lemmas = []
-    id_pictos = []
-    synsets = []
-    sense_keys = []
+    result_data = {'id_picto': [], 'lemma': [], 'synsets': [], 'sense_keys': []}
+
     for k, v in wolf_data.items():
+        found_match = False
         for sense in v:
-            for i, row in lexicon.iterrows():
-                if sense in row["sense_keys"]:
-                    lemmas.append(k)
-                    id_pictos.append(row["id_picto"])
-                    synsets.append(row["synsets"])
-                    sense_keys.append(row["sense_keys"])
-        if k not in lemmas:
-            lemmas.append(k)
-            id_pictos.append("")
-            synsets.append("")
-            sense_keys.append(v)
-    data = {'id_picto': id_pictos, 'lemma': id_pictos, 'synsets': synsets, 'sense_keys': sense_keys}
-    df = pd.DataFrame(data)
-    df.to_csv("wolf_merge_with_lexicon.csv", sep="\t", index=False)
+            matching_rows = lexicon[lexicon['sense_keys'].apply(lambda keys: sense in keys)]
+
+            if not matching_rows.empty:
+                row = matching_rows.iloc[0]
+                result_data['id_picto'].append(row['id_picto'])
+                result_data['lemma'].append(k)
+                result_data['synsets'].append(row['synsets'])
+                result_data['sense_keys'].append(row['sense_keys'])
+                found_match = True
+                break
+
+        if not found_match:
+            result_data['id_picto'].append('')
+            result_data['lemma'].append(k)
+            result_data['synsets'].append('')
+            result_data['sense_keys'].append(v)
+
+    result_df = pd.DataFrame(result_data)
+    result_df.to_csv("wolf_merge_with_lexicon.csv", sep="\t", index=False)
 
 
 def main(wolf_file, lexicon):
