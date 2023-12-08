@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import numpy as np
 
+
 def read_tsv(csv_file):
     """
         Read csv file in a dataframe

@@ -3,7 +3,7 @@ import random
 import csv
 from generate_html_from_json_ortolang import *
 
-corpus = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
+corpus = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions",
           "tufs", "valibel"]
 
 
@@ -37,7 +37,7 @@ def get_doc_id_and_seg_id(id, corpus_name):
     return doc_id, seg_id
 
 
-def select_data_per_corpus(dir, n=20):
+def select_data_per_corpus_for_MQM(dir, n=20):
     all_selected_ids, all_selected_sentences, all_selected_pictos, all_selected_tokens, all_corpus = [], [], [], [], []
     for c in corpus:
         ids, sentences, pictos, tokens = read_json_file(dir + c + "/" + "corpus_" + c + ".json")
@@ -60,9 +60,27 @@ def select_data_per_corpus(dir, n=20):
     html_file(name_html, all_selected_ids, all_selected_sentences, all_selected_pictos, all_selected_tokens)
 
 
+def select_subset_sentences_for_test_gold(dir, n=30):
+    all_selected_sentences = []
+    corpus_names = []
+    for c in corpus:
+        ids, sentences, pictos, tokens = read_json_file(dir + c + "/" + "corpus_" + c + ".json")
+        ids_subset, sentences_subset, pictos_subset, tokens_subset = select_data(ids, sentences, pictos, tokens, n)
+        all_selected_sentences.extend(sentences_subset)
+        corpus_names.extend([c]*n)
+
+    with open('selection_sentences.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        field = ["text", "corpus"]
+        writer.writerow(field)
+        for i, j in enumerate(all_selected_sentences):
+            writer.writerow([j, corpus_names[i]])
+
+
 def main():
     dir = "/data/macairec/PhD/Grammaire/corpus/ortolang/propicto-orfeo/"
-    select_data_per_corpus(dir)
+    # select_data_per_corpus_for_MQM(dir)
+    select_subset_sentences_for_test_gold(dir)
 
 
 if __name__ == '__main__':
