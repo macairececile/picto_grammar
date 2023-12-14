@@ -70,5 +70,5 @@ def main(wolf_file, lexicon):
 
 
 if __name__ == '__main__':
-    main("/data/macairec/PhD/Grammaire/dico/wolf_data.txt",
+    main("/data/macairec/PhD/Grammaire/dico/wolf/wolf_data.txt",
          "/data/macairec/PhD/Grammaire/dico/lexique_5_12_2023_11h.csv")

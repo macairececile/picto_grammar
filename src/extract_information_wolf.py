@@ -17,15 +17,15 @@ def read_wolf_data(file):
         # Extraire le contenu de la balise ID
         synset_id = synset.find('./ID').text.split("eng-30-")[1]
 
-        hypernyms = [ilr.text.split("eng-30-")[1] for ilr in synset.findall('./ILR[@type="hypernym"]')]
+        # hypernyms = [ilr.text.split("eng-30-")[1] for ilr in synset.findall('./ILR[@type="hypernym"]')]
 
         # derivatives = [ilr.text.split("eng-30-")[1] for ilr in synset.findall('./ILR[@type="eng_derivative"]')]
         if literal != "_EMPTY_":
             if literal not in wolf_data.keys():
-                wolf_data[literal] = [synset_id] + hypernyms
+                wolf_data[literal] = [synset_id] # + hypernyms
             else:
                 wolf_data[literal].append(synset_id)
-                wolf_data[literal].extend(hypernyms)
+                # wolf_data[literal].extend(hypernyms)
             # if derivatives:
             #     wolf_data[literal] = [synset_id] + derivatives
             # else:
@@ -109,4 +109,4 @@ def process_wolf(wolf_file, wn30_file):
 
 
 if __name__ == '__main__':
-    process_wolf("/data/macairec/PhD/Grammaire/dico/wolf.xml", "/data/macairec/PhD/Grammaire/dico/index_wn_30.sense")
+    process_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf.xml", "/data/macairec/PhD/Grammaire/dico/index_wn_30.sense")
