@@ -1,8 +1,33 @@
 """
 Methods to show the translation in pictograms in a html file.
 """
+import pandas as pd
 
 from grammar import *
+
+
+def read_tags(tags):
+    return pd.read_csv(tags, sep=",")
+
+
+def check_tags(tags, ids_picto, html_file):
+    violence = []
+    sex = []
+    for i in ids_picto:
+        try:
+            sex.append(tags.loc[tags['id_picto'] == i]["sex"].tolist()[0])
+            violence.append(tags.loc[tags['id_picto'] == i]["violence"].tolist()[0])
+        except:
+            print("No tags")
+    if True in violence and True in sex:
+        html_file.write(
+            "WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence et de contenu sexuel.")
+    if True in violence:
+        html_file.write(
+            "WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence.")
+    if True in sex:
+        html_file.write(
+            "WARNING: Cette séquence inclut des pictogrammes illustrant du contenu sexuel.")
 
 
 def create_html_file(html_file):
@@ -49,15 +74,16 @@ def write_header_info_per_sentence(html_file, utt_name):
     html_file.write("</div></div></div></div>")
 
 
-def write_translations_per_sentence(html_file, translations):
+def write_translations_per_sentence(html_file, translations, tags):
     """
-        Write the the pictogram image in a div.
+        Write the pictogram image in a div.
 
         Arguments
         ---------
         html_file: file
         translations: list
     """
+    ids_picto = []
     if translations is not None:
         for id_picto in translations:
             if id_picto.to_picto:
@@ -83,10 +109,12 @@ def write_translations_per_sentence(html_file, translations):
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
                             info_wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
+                ids_picto.append(id_picto.picto[0])
                 html_file.write("&nbsp;&nbsp;")
+    check_tags(tags, ids_picto, html_file)
 
 
-def print_pictograms(sentence, sentence_grammar, html_file):
+def print_pictograms(sentence, sentence_grammar, html_file, tags_file):
     """
         Create the html file.
 
@@ -96,14 +124,15 @@ def print_pictograms(sentence, sentence_grammar, html_file):
         sentence_grammar: list
         html_file: str
     """
+    tags = read_tags(tags_file)
     html = create_html_file(html_file)
-    html.write("<div class = \"container\">")
+    html.write("<div class = \"container-fluid\">")
     for i, s in enumerate(sentence):
         html.write("<div class=\"shadow p-3 mb-5 bg-white rounded\">")
         write_header_info_per_sentence(html, s)
 
-        html.write("<div class=\"container px-4\">")
-        write_translations_per_sentence(html, sentence_grammar[i])
+        html.write("<div class=\"container-fluid\">")
+        write_translations_per_sentence(html, sentence_grammar[i], tags)
         html.write("</div>")
         html.write("</div>")
 

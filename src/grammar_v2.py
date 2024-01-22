@@ -28,7 +28,7 @@ phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'ba
                          'ben', 'beh', "bref",
                          'bing', 'boum', 'broum', 'cataclop', 'clap clap', 'coa coa', 'cocorico', 'coin coin',
                          'crac',
-                         'croa croa', 'cuicui', 'ding', 'ding deng dong', 'ding dong', 'dring', 'hé', 'hé ben',
+                         'croa croa', 'cuicui', 'ding', 'ding deng dong', 'ding dong', 'dring', 'hé', 'eh', 'hé ben',
                          'eh bien', 'euh',
                          'flic flac', 'flip flop', 'frou frou', 'glouglou', 'glou glou', 'groin groin', 'grr', 'hé',
                          'hep', 'hein', 'hm',
@@ -52,10 +52,13 @@ futur_anterieur = ["aurai", "auras", "aura", 'aurons', "aurez", "auront", "serai
                    "seront"]
 
 words_to_replace = [["Monsieur", "monsieur"], ["Madame", "madame"], ["mademoiselle", "madame"], ["ça", "cela"],
-                    ["nan", "non"], ["madame", "madame"], ["belle", "belle"], ['moui', 'oui']]
+                    ["nan", "non"], ["madame", "madame"], ["belle", "belle"], ['moui', 'oui'], ["bel", "belle"]]
 
 pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela"], ["t'", "tu"], ["on", "nous"],
-                       ["m'", "me"], ["une", "une"], ["cette", "la"], ['te', 'toi']]
+                       ["m'", "me"], ["une", "une"], ["cette", "la"], ['te', 'toi'], ["ce", "celui"], ["qu'", "que"],
+                       ["d'", "de"]]
+
+words_no_translations = ["puis", "sinon", "voilà", "enfin", "donc", "complètement", "énormément", "chez", "vraiment"]
 
 words_prefix = [
     ['dés', [24753]],
@@ -390,7 +393,7 @@ def process_with_spacy(text, spacy_model):
 
         Returns
         -------
-        The text with, for each word, information tagged by spacy.
+        The text width, for each word, information tagged by spacy.
     """
     doc = spacy_model(text)
     text_spacy = []
@@ -652,8 +655,15 @@ def indic_temp(text_spacy):
         if w.pos == "NUM":
             actual_group.append(w.token)
             position_nums.append(i)
-            if i == len(text_spacy) - 1 or text_spacy[i + 1].pos != "NUM":
-                nums.append([" ".join(actual_group), i, position_nums])
+            if i < len(text_spacy) - 1:
+                if text_spacy[i + 1].pos != "NUM":
+                    if text_spacy[i + 1].token.endswith("ième") or text_spacy[i + 1].token.endswith("ièmes"):
+                        for pos in position_nums:
+                            text_spacy[pos].to_picto = False
+                        text_spacy[i + 1].to_picto = True
+                        text_spacy[i + 1].picto = [9877]
+                else:
+                    nums.append([" ".join(actual_group), i, position_nums])
                 position_nums = []
                 actual_group = []
     for el in nums:
@@ -937,20 +947,45 @@ def check_ner(w, lexicon):
 
 def special_cases(text_spacy):
     """
-        Handle special cases (e.g. Paris the city)
+        Handle special cases (e.g. Paris the city; Wrong tokenization, words to not translate)
 
         Arguments
         ---------
         text_spacy: list
     """
-    for w in text_spacy:
+    for a, w in enumerate(text_spacy):
         if w.token == 'paris' and w.pos == 'PROPN':
             w.picto = [10271]
+        if w.token in words_no_translations:
+            pref = [i[0] for i in words_prefix]
+            if any(w.token.startswith(s) for s in pref):
+                text_spacy[a - 1].to_picto = False
+            w.to_picto = False
+        if w.pos == "VERB":
+            if w.prefix:
+                idx = 1
+            else:
+                idx = 0
+            if not any(w.lemma[idx].endswith(s) for s in ["ir", "oir", "re", "aller"]):
+                if w.lemma[idx].endswith("e"):
+                    w.lemma[idx] = w.lemma[idx] + "r"
+        if w.token == "car" and w.pos == "CCONJ":
+            w.picto = [11348]
+
+
+def adverbial_group(text_spacy):
+    for i, w in enumerate(text_spacy):
+        if w.token in ["tout", "fort", "très", "assez"] and w.pos == "ADV":
+            if i < len(text_spacy) - 1:
+                if text_spacy[i + 1].pos == "ADV":
+                    w.to_picto = False
+                if text_spacy[i + 1].pos == "ADJ" and w.token in ["tout", "fort", "assez"]:
+                    w.to_picto = False
 
 
 def mapping_text_to_picto(text_after_rules, lexicon):
     """
-        Mapping words to pictograms depending on the annotated informations.
+        Mapping words to pictograms depending on the annotated information.
 
         Arguments
         ---------
@@ -1062,11 +1097,14 @@ def remove_consecutive_picto(text_spacy):
         ---------
         text_spacy: list
     """
-    to_picto = [w.to_picto for w in text_spacy]
+    to_picto = []
+    for a, w in enumerate(text_spacy):
+        if w.to_picto and len(w.picto) != 0:
+            to_picto.append([a, w.picto])
     for i, info in enumerate(to_picto):
         if not i == len(to_picto) - 1:
-            if list(set(text_spacy[i].picto) & set(text_spacy[i + 1].picto)):
-                text_spacy[i].to_picto = False
+            if list(set(info[1]) & set(to_picto[i + 1][1])):
+                text_spacy[info[0]].to_picto = False
 
 
 def use_lexicon_wolf(text_spacy, wolf_data):
@@ -1151,6 +1189,7 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
             prefix(s_spacy)
             name_entities(s_spacy, ner_model)
             special_cases(s_spacy)
+            adverbial_group(s_spacy)
             mapping_text_to_picto(s_spacy, lexicon)
             apply_wsd(wsd_model, s_spacy, lexicon, wn_data)
             # use_lexicon_wolf(s_spacy, lexicon_wolf)
@@ -1181,8 +1220,8 @@ def save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexi
         lexicon: dataframe
         output_file: str
     """
-    # out_data = pd.DataFrame(columns=['clips', 'text', 'text_process', 'pictos', 'tokens'])
-    out_data = pd.DataFrame(columns=['text', 'text_process', 'pictos', 'tokens'])
+    out_data = pd.DataFrame(columns=['clips', 'text', 'text_process', 'pictos', 'tokens'])
+    # out_data = pd.DataFrame(columns=['text', 'text_process', 'pictos', 'tokens'])
     for i, j in enumerate(s_rules):
         if j is None:
             # add_info = {'text': sentences[i], 'text_process': "",
@@ -1212,24 +1251,28 @@ def save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexi
 def main():
     wn_data = parse_wn31_file("/data/macairec/PhD/Grammaire/dico/index.sense")  # "index.sense"
     no_transl = read_no_translation_words(
-        "/data/macairec/PhD/Grammaire/dico/no_translation.csv")  # "no_translation.csv"
+        "/data/macairec/PhD/Grammaire/dico/no_translation_v2.csv")  # "no_translation.csv"
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
     wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
-    lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique.csv")
-    lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
+    lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique_v2.csv")
+    # lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
     sentences, data_init = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/eval_s2p.tsv")
+        "/data/macairec/PhD/Grammaire/corpus/csv/test_grammar_v2.tsv")
     words_not_in_dico_picto = []
     sentences_proc = []
     s_rules = [
         grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
-                lexicon, lexicon_wolf) for s in
+                lexicon, "") for s in
         sentences]
-    save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
-                             "/data/macairec/PhD/Grammaire/corpus/csv/eval_s2p_pictos.csv")
+    # save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
+    #                          "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/tcof_grammar_v2_2.csv")
     print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
-    print_pictograms(sentences, s_rules, "eval_s2p.html", "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    # print_pictograms(sentences[:100], s_rules[:100], "tcof_grammar_v2_0_10400_10500.html", "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    # print_pictograms(sentences[100:200], s_rules[100:200], "tcof_grammar_v2_10500_10600.html",
+    #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    print_pictograms(sentences, s_rules, "test_grammar_v2.html",
+                     "/data/macairec/PhD/Grammaire/dico/tags.csv")
 
 
 # def main(args):
