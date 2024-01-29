@@ -23,6 +23,29 @@ wer = evaluate.load('wer')
 pd.options.mode.chained_assignment = None
 
 
+def read_output_grammar_file_from_asr(txt_file):
+    clips, tokens, text, pictos = [], [], [], []
+    f = open(txt_file, 'r')
+    csv_reader = csv.reader(f, delimiter='\t')
+    for row in csv_reader:
+        clips.append(row[0])
+        if row[4] == " ":
+            tokens.append('')
+            pictos.append([])
+        else:
+            tokens.append(" ".join(ast.literal_eval(row[4])))
+            pictos.append(ast.literal_eval(row[3]))
+        text.append(row[2])
+    f.close()
+    data = {'clips': clips,
+            'tokens': tokens,
+            'text': text,
+            "hyp_picto": pictos}
+    df = pd.DataFrame(data)
+    return df
+
+
+
 def get_corpus_name(clip_name):
     """
         Get the corpus name.
@@ -71,6 +94,7 @@ def get_ref_pictos_and_tokens(data_asr, data_refs):
     tokens_refs = []
     pictos_refs = []
     corpus_name = []
+    ref_text = []
     for i, row in data_asr.iterrows():
         clip = row["clips"]
         row_ref = data_refs.loc[data_refs['clips'] == clip]
@@ -78,15 +102,21 @@ def get_ref_pictos_and_tokens(data_asr, data_refs):
             tokens_refs.append("to_delete")
             pictos_refs.append("to_delete")
             corpus_name.append(get_corpus_name(clip))
+            ref_text.append("to_delete")
         else:
             tokens_refs.append(row_ref['tokens'].values[0])
             pictos_refs.append(row_ref['pictos'].values[0])
             corpus_name.append(get_corpus_name(clip))
+            ref_text.append(row_ref["text"].values[0])
 
     data_asr["ref_tokens"] = tokens_refs
+    length = [t.split(" ") for t in tokens_refs]
+    print("Average length picto translation ", sum(map(len, length))/float(len(length)))
     data_asr["ref_pictos"] = pictos_refs
     data_asr["corpus_name"] = corpus_name
+    data_asr["text_ref"] = ref_text
     data = data_asr[data_asr.ref_tokens != 'to_delete']
+    data.to_csv("data.csv", sep="\t", index=False)
     return data
 
 
@@ -131,9 +161,14 @@ def compute_scores(data_asr, corpus_name=None):
     references_bleu = []
     predictions = []
     for i, row in by_corpus.iterrows():
-        references.append(row["pictos_grammar_tokens"])
-        references_bleu.append(row["pictos_grammar_tokens"])
+        references.append(row["ref_tokens"])
+        references_bleu.append(row["ref_tokens"])
         predictions.append(row["tokens"])
+        # try:
+        #     print("Clips : ", row["clips"])
+        #     print("BLEU SCORE SENTENCE : ", bleu.compute(predictions=[row["tokens"]], references=[row["ref_tokens"]])["bleu"] * 100)
+        # except:
+        #     print("")
     results_wer = wer.compute(predictions=predictions, references=references)
     wer_score = round(results_wer, 3) * 100
     results_bleu = bleu.compute(predictions=predictions, references=references_bleu)
@@ -169,16 +204,17 @@ def evaluate(file_asr, file_ref):
         file_asr: str
         file_ref: str
     """
-    data_asr = pd.read_csv(file_asr, sep='\t')
+    # data_asr = pd.read_csv(file_asr, sep='\t')
+    data_asr = read_output_grammar_file_from_asr(file_asr)
     clean_data_asr(data_asr)
     data_refs = pd.read_csv(file_ref, sep='\t')
     data_asr = get_ref_pictos_and_tokens(data_asr, data_refs)
     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
              "tufs", "valibel"]
-    for n in names:
-        print("Score for the corpus " + n + ": ")
-        bleu_score, wer_score, meteor_score = compute_scores(data_asr, n)
-        print_automatic_eval(bleu_score, wer_score, meteor_score)
+    # for n in names:
+    #     print("Score for the corpus " + n + ": ")
+    #     bleu_score, wer_score, meteor_score = compute_scores(data_asr, n)
+    #     print_automatic_eval(bleu_score, wer_score, meteor_score)
     bleu_score, wer_score, meteor_score = compute_scores(data_asr)
     print("Score all corpus: ")
     print_automatic_eval(bleu_score, wer_score, meteor_score)
@@ -310,8 +346,8 @@ def write_html_file(df, html_file):
 #         evaluate_by_wer(args.file_asr, args.file_asr_grammar, args.file_ref)
 
 def eval():
-    evaluate_by_wer("/data/macairec/PhD/Grammaire/exps_speech/whisper/out_with_wer/whisper_large_results_with_wer.csv", "/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_large_grammar.csv", "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
-
+    # evaluate("/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_large_grammar.csv", "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
+    evaluate("/data/macairec/PhD/Grammaire/End2End/grammar_out/test_commonvoice_seamless_grammar.txt", "/data/macairec/PhD/Grammaire/S2P_eval_MQM/test_commonvoice_s2p.csv")
 
 if __name__ == '__main__':
     eval()

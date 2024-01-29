@@ -8,6 +8,8 @@ Example of use:
     --file_asr_grammar "corpus_all_grammar_pictos.csv" --file_asr "whisper_results.csv"
 
 """
+import pandas as pd
+
 from print_sentences_from_grammar import *
 import ast
 
@@ -19,12 +21,20 @@ orfeo_segments = ["cefc-cfpb-1000-5-705", "cefc-cfpp-Isabelle_Legrand_F_32_Anne-
                   "cefc-tcof-guitariste-2",
                   "cefc-tufs-14HCMJ110913-2331", "cefc-valibel-ileBH1r-55"]
 
+orfeo_segments_2 = ["cefc-cfpb-1200-2-1185", "cefc-ofrom-unine11c05m-39", "cefc-tufs-14HCMJ110913-2764", "cefc-coralrom-fmedsc02-9",
+                    "cefc-frenchoralnarrative-Bizouerne_039-8_CELUI_QUI_NE_VEUT_PAS_MOURIR_1-197", "cefc-valibel-ilcDA1r-246",
+                    "cefc-crfp-PRI-BEL-2-223", "cefc-fleuron-V_Defle_endo_05_P4-11", "cefc-cfpp-Raphael_Lariviere_H_23_7e-767", "cefc-tcof-Etudesmedecine_sim-193",
+                    "cefc-reunions-de-travail-OF1_SeanceTravail_4dec07-2270", "cefc-clapi-reunion_conception_mosaic_architecture-2036"]
+
 commonvoice_segments = ["common_voice_fr_17863422", "common_voice_fr_18058692", "common_voice_fr_17394327",
                         "common_voice_fr_37437270", "common_voice_fr_17945155",
                         "common_voice_fr_25960260", "common_voice_fr_27415274", "common_voice_fr_19738135",
                         "common_voice_fr_27041566", "common_voice_fr_19685495",
                         "common_voice_fr_28739512", "common_voice_fr_25327246"]
 
+commonvoice_segments_2 = ["common_voice_fr_30417468", "common_voice_fr_22783960", "common_voice_fr_27026911", "common_voice_fr_20042434",
+                          "common_voice_fr_19751859", "common_voice_fr_19950489", "common_voice_fr_19718800", "common_voice_fr_22790625",
+                          "common_voice_fr_19754281", "common_voice_fr_23067169", "common_voice_fr_37524250", "common_voice_fr_27216383"]
 
 def read_lexique(lexicon):
     """
@@ -57,7 +67,7 @@ def get_infos_from_test_data(file_s2p_ref, file_asr_input):
     for i, row in df.iterrows():
         infos_all["ID"].append(row["clips"])
         infos_all["REF"].append(row["text"])
-        infos_all["REF_PICTO"].append(row["tokens"])
+        infos_all["REF_PICTO"].append(row["tgt"])
         infos_all["HYP_ASR"].append(ast.literal_eval(df2.loc[i, 'translation'])["fr"])
     return infos_all
 
@@ -96,6 +106,7 @@ def merge_ref_and_hyp_infos_and_select_sentences_to_eval(file_mt, file_s2p_ref, 
     segments_to_eval = select_sentences_to_evaluate(infos_all, segments)
     get_id_picto_lexicon_from_mt(segments_to_eval, lexicon)
     return segments_to_eval
+
 
 
 def html_file(segments, html_file):
@@ -166,15 +177,28 @@ def create_MQM_file(segments, csv_file):
 def generate_html():
     lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique.csv")
     infos_to_eval = merge_ref_and_hyp_infos_and_select_sentences_to_eval(
-        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/wav2vec2_nllb_commonvoice.txt",
-        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/test_commonvoice_s2p.csv",
-        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/data_asr/wav2vec2/test_commonvoice.csv",
-        commonvoice_segments, lexicon)
+        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/wav2vec2_t5_orfeo.txt",
+        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/test_s2p_orfeo.csv",
+        "/data/macairec/PhD/Grammaire/S2P_eval_MQM/data_asr/wav2vec2/test_orfeo.csv",
+        orfeo_segments_2, lexicon)
 
-    # create_MQM_file(infos_to_eval, "MQM_seamless_nllb_commonvoice.csv")
+    create_MQM_file(infos_to_eval, "/data/macairec/PhD/Grammaire/S2P_eval_MQM/MQM_2/MQM_wav2vec2_t5_orfeo.csv")
 
-    html_file(infos_to_eval, "wav2vec2_nllb_commonvoice.html")
+    html_file(infos_to_eval, "/data/macairec/PhD/Grammaire/S2P_eval_MQM/MQM_2/wav2vec2_t5_orfeo.html")
+
+
+def generate_MQM_file_from_out_grammar_asr_merge(file_csv):
+    data = pd.read_csv(file_csv, sep="\t")
+    subset_df = data[data['clips'].isin(orfeo_segments_2)]
+    infos = []
+    for i, row in subset_df.iterrows():
+        infos.append([row["clips"], row["text_ref"], row["text"], row["ref_tokens"], row["tokens"], ast.literal_eval(row["ref_pictos"]), ast.literal_eval(row["hyp_picto"])])
+    create_MQM_file(infos, "/data/macairec/PhD/Grammaire/End2End/MQM/MQM_wav2vec2_grammar_orfeo.csv")
+
+    html_file(infos, "/data/macairec/PhD/Grammaire/End2End/MQM/MQM_wav2vec2_grammar_orfeo.html")
+
 
 
 if __name__ == '__main__':
-    generate_html()
+    # generate_html()
+    generate_MQM_file_from_out_grammar_asr_merge("/data/macairec/PhD/Grammaire/End2End/grammar_out/test_orfeo_wav2vec2_grammar_merge.csv")

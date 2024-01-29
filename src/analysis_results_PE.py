@@ -21,6 +21,7 @@ bleu = evaluate.load("bleu")
 meteor = evaluate.load('meteor')
 wer = evaluate.load('wer')
 ter = evaluate.load('ter')
+from jiwer import compute_measures
 
 
 def get_json_from_post_edit(folder):
@@ -174,6 +175,7 @@ def term_ter(dataframe, corpus_name):
         The list of PER scores for each post-edit sentence.
     """
     ter_scores = {}
+    edits = {}
     if corpus_name:
         by_corpus = dataframe.loc[dataframe['corpus_name'] == corpus_name]
         grouped = by_corpus.groupby('user').groups.values()
@@ -184,11 +186,24 @@ def term_ter(dataframe, corpus_name):
         references = []
         predictions = []
         username = by_corpus.loc[user[0]]["user"]
+        subs, delet, inser = 0, 0, 0
         for i in user:
             references.append([' '.join(by_corpus.loc[i]["pictos_grammar_tokens"])])
             predictions.append(' '.join(by_corpus.loc[i]["pictos_annot_token"]))
         results = ter.compute(predictions=predictions, references=references)
+        for prediction, reference in zip(predictions, references):
+            measures = compute_measures(reference, prediction)
+            subs += measures["substitutions"]
+            delet += measures["deletions"]
+            inser += measures["insertions"]
+        if username in edits.keys():
+            edits[username][0] += subs
+            edits[username][1] += delet
+            edits[username][2] += inser
+        else:
+            edits[username] = [subs, delet, inser]
         ter_scores[username] = results["score"]
+    print(edits)
     return ter_scores
 
 
@@ -441,24 +456,39 @@ def analysis(json_folder, json_input, lexicon, corpus_name=None):
         create_data_for_analysis(json_folder + f, lexique, df, sentences, pictos, names)
     df.to_csv("orfeo_PE_data.csv", index=False, header=True, sep='\t')
     ter_scores = term_ter(df, corpus_name)
-    score_between_annotators(df, corpus_name)
-    print_automatic_eval(ter_scores)
-    inter_annotator_aggrement(df, corpus_name)
-    create_html_with_correct_sentences(df, html_same)
-    create_html_with_differences(df, html_dif)
+    # score_between_annotators(df, corpus_name)
+    # print_automatic_eval(ter_scores)
+    # inter_annotator_aggrement(df, corpus_name)
+    # create_html_with_correct_sentences(df, html_same)
+    # create_html_with_differences(df, html_dif)
 
 
-def main(args):
+# def main(args):
+#     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
+#              "tufs", "valibel"]
+#     for i in names:
+#         print("Corpus name: ", i)
+#         analysis(
+#             args.json_PE_dir,
+#             args.json_init,
+#             args.lexicon,
+#             i)
+#         print("--------")
+
+def main():
     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
              "tufs", "valibel"]
     for i in names:
         print("Corpus name: ", i)
         analysis(
-            args.json_PE_dir,
-            args.json_init,
-            args.lexicon,
+            "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/json/",
+            "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_orfeo.json",
+            "/data/macairec/PhD/Grammaire/dico/lexique.csv",
             i)
         print("--------")
+
+if __name__ == '__main__':
+    main()
 
 
 # parser = ArgumentParser(description="Post-edition analysis.",

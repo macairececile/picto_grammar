@@ -18,16 +18,16 @@ def check_tags(tags, ids_picto, html_file):
             sex.append(tags.loc[tags['id_picto'] == i]["sex"].tolist()[0])
             violence.append(tags.loc[tags['id_picto'] == i]["violence"].tolist()[0])
         except:
-            print("No tags")
+            print("")
     if True in violence and True in sex:
         html_file.write(
-            "WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence et de contenu sexuel.")
+            "<br/>WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence et de contenu sexuel.<br/>")
     if True in violence:
         html_file.write(
-            "WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence.")
+            "<br/>WARNING: Cette séquence inclut des pictogrammes illustrant des scènes de violence.<br/>")
     if True in sex:
         html_file.write(
-            "WARNING: Cette séquence inclut des pictogrammes illustrant du contenu sexuel.")
+            "<br/>WARNING: Cette séquence inclut des pictogrammes illustrant du contenu sexuel.<br/>")
 
 
 def create_html_file(html_file):

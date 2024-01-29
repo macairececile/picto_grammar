@@ -15,7 +15,7 @@ from analysis_results_PE import *
 import csv
 import spacy
 from text_to_num import text2num
-
+from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -126,9 +126,10 @@ def read_sentences(csv_file):
         The list of sentences.
     """
     df = pd.read_csv(csv_file, sep='\t')
+    print(len(df))
     # df2 = df.dropna()
     df2 = df.drop_duplicates()
-    return [a.lower() for a in df2["text"].tolist()], df2
+    return [a.lower() for a in df2["text"].tolist()][13000:], df2[13000:]
 
 
 def get_picto_lemma(lemma, lexicon):
@@ -962,7 +963,7 @@ def special_cases(text_spacy):
                 text_spacy[a - 1].to_picto = False
             w.to_picto = False
         if w.pos == "VERB":
-            if w.prefix:
+            if len(w.lemma) == 2:
                 idx = 1
             else:
                 idx = 0
@@ -1194,12 +1195,15 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
             apply_wsd(wsd_model, s_spacy, lexicon, wn_data)
             # use_lexicon_wolf(s_spacy, lexicon_wolf)
             remove_consecutive_picto(s_spacy)
-            print(s_new)
-            print("-----------------")
+            # print(s_new)
+            # print("-----------------")
             for w in s_spacy:
-                if w.picto == [404]:
-                    words_not_in_lexicon.extend(w.lemma)
-                print(w.__str__())
+                if w.picto == [404] or w.wsd != '':
+                    if len(w.lemma) == 2:
+                        words_not_in_lexicon.append(w.lemma[1])
+                    else:
+                        words_not_in_lexicon.append(w.lemma[0])
+                # print(w.__str__())
             return s_spacy
         else:
             return None
@@ -1258,21 +1262,24 @@ def main():
     lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique_v2.csv")
     # lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
     sentences, data_init = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/test_grammar_v2.tsv")
+        "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/corpus_tcof.csv")
     words_not_in_dico_picto = []
     sentences_proc = []
-    s_rules = [
-        grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
-                lexicon, "") for s in
-        sentences]
+    s_rules = []
+    for s in tqdm(sentences, desc="description", unit="iteration"):
+        a = grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
+                lexicon, "")
+        s_rules.append(a)
+
     # save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
     #                          "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/tcof_grammar_v2_2.csv")
     print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
-    # print_pictograms(sentences[:100], s_rules[:100], "tcof_grammar_v2_0_10400_10500.html", "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    # print_pictograms(sentences, s_rules, "tcof_grammar_v2_0_7000_10000.html",
+    #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
     # print_pictograms(sentences[100:200], s_rules[100:200], "tcof_grammar_v2_10500_10600.html",
     #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
-    print_pictograms(sentences, s_rules, "test_grammar_v2.html",
-                     "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    # print_pictograms(sentences, s_rules, "test_grammar_v2.html",
+    #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
 
 
 # def main(args):
