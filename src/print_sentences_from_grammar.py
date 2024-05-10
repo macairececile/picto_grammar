@@ -94,7 +94,7 @@ def write_translations_per_sentence(html_file, translations, tags):
                 if id_picto.picto == [404]:
                     html_file.write(
                         "<span style=\"color: #000080;\"><figure class=\"figure\">"
-                        "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
+                        "<img src=\"img/" + str(
                             id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"110\" height=\"110\" />"
                                                           "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
@@ -114,7 +114,7 @@ def write_translations_per_sentence(html_file, translations, tags):
     check_tags(tags, ids_picto, html_file)
 
 
-def print_pictograms(sentence, sentence_grammar, html_file, tags_file):
+def generate_html(sentence, sentence_grammar, html_file, tags_file):
     """
         Create the html file.
 

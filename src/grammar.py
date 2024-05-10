@@ -1,8 +1,6 @@
 """
 Script to apply the grammar and retrieve the sequence of pictograms.
 
-Example of use: python grammar.py --wn_file 'index.sense' --no_transl 'no_translation.csv' --wsd '/model_wsd/'
---lexicon 'lexique.csv' --corpus 'corpus.csv' --out 'corpus_grammar.csv'
 """
 
 from print_sentences_from_grammar import *
@@ -1109,8 +1107,8 @@ def get_words_no_picto(texts_grammar):
 # --------------------------------------- #
 # -------- APPLY RULES - GRAMMAR -------- #
 # --------------------------------------- #
-def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner_model, wsd_model, sentences_proc,
-            lexicon, lexicon_wolf):
+def grammar(wn_data, no_transl, sentence, spacy_model, ner_model, wsd_model, sentences_proc,
+            lexicon):
     """
         Apply the rules on the text.
 
@@ -1120,7 +1118,6 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
         no_transl: list
         sentence: str
         spacy_model: Language
-        words_not_in_lexicon: list
         ner_model: Pipeline
         wsd_model: NeuralDisambiguator
         sentences_proc: list
@@ -1153,13 +1150,10 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
             special_cases(s_spacy)
             mapping_text_to_picto(s_spacy, lexicon)
             apply_wsd(wsd_model, s_spacy, lexicon, wn_data)
-            # use_lexicon_wolf(s_spacy, lexicon_wolf)
             remove_consecutive_picto(s_spacy)
             print(s_new)
             print("-----------------")
             for w in s_spacy:
-                if w.picto == [404]:
-                    words_not_in_lexicon.extend(w.lemma)
                 print(w.__str__())
             return s_spacy
         else:
@@ -1181,13 +1175,9 @@ def save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexi
         lexicon: dataframe
         output_file: str
     """
-    # out_data = pd.DataFrame(columns=['clips', 'text', 'text_process', 'pictos', 'tokens'])
-    out_data = pd.DataFrame(columns=['text', 'text_process', 'pictos', 'tokens'])
+    out_data = pd.DataFrame(columns=['clips', 'text', 'text_process', 'pictos', 'tokens'])
     for i, j in enumerate(s_rules):
         if j is None:
-            # add_info = {'text': sentences[i], 'text_process': "",
-            #             'pictos': "",
-            #             'tokens': ""}
             add_info = {'clips': data_init.iloc[i]["clips"], 'text': sentences[i], 'text_process': "",
                         'pictos': "",
                         'tokens': ""}
@@ -1202,72 +1192,43 @@ def save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexi
             add_info = {'clips': data_init.iloc[i]["clips"], 'text': sentences[i],
                         'text_process': sentences_proc[i], 'pictos': pictos,
                         'tokens': " ".join(tokens)}
-            # add_info = {'text': sentences[i],
-            #             'text_process': sentences_proc[i], 'pictos': pictos,
-            #             'tokens': " ".join(tokens)}
             out_data.loc[len(out_data), :] = add_info
     out_data.to_csv(output_file, sep='\t', index=False)
 
 
-def main():
-    wn_data = parse_wn31_file("/data/macairec/PhD/Grammaire/dico/index.sense")  # "index.sense"
-    no_transl = read_no_translation_words(
-        "/data/macairec/PhD/Grammaire/dico/no_translation.csv")  # "no_translation.csv"
+def main(args):
+    wn_data = parse_wn31_file(args.wn_file)  # "index.sense"
+    no_transl = read_no_translation_words(args.no_transl)  # "no_translation.csv"
     spacy_model = load_model("fr_dep_news_trf")
     ner_model = load_ner_model()
-    wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
-    lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique.csv")
-    lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
-    sentences, data_init = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/test_grammar_v2.tsv")
-    words_not_in_dico_picto = []
+    wsd_model = load_wsd_model(args.wsd)
+    lexicon = read_lexique(args.lexicon)
+    sentences, data_init = read_sentences(args.data)
     sentences_proc = []
     s_rules = [
-        grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
-                lexicon, lexicon_wolf) for s in
+        grammar(wn_data, no_transl, s, spacy_model, ner_model, wsd_model, sentences_proc,
+                lexicon) for s in
         sentences]
-    save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
-                             "/data/macairec/PhD/Grammaire/corpus/csv/eval_s2p_pictos.csv")
-    print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
-    print_pictograms(sentences, s_rules, "eval_s2p.html", "/data/macairec/PhD/Grammaire/dico/tags.csv")
+    save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon, args.out)
+    generate_html(sentences, s_rules, "out.html", args.tags)
 
 
-# def main(args):
-#     wn_data = parse_wn31_file(args.wn_file)  # "index.sense"
-#     no_transl = read_no_translation_words(args.no_transl)  # "no_translation.csv"
-#     spacy_model = load_model("fr_dep_news_trf")
-#     ner_model = load_ner_model()
-#     wsd_model = load_wsd_model(args.wsd)
-#     lexicon = read_lexique(args.lexicon)
-#     sentences, data_init = read_sentences(args.corpus)
-#     words_not_in_dico_picto = []
-#     sentences_proc = []
-#     s_rules = [
-#         grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
-#                 lexicon) for s in
-#         sentences]
-#     save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon, args.out)
-#     print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
-#     print_pictograms(sentences, s_rules, "out.html")
-
-
-if __name__ == '__main__':
-    main()
-
-# parser = ArgumentParser(description="Generate the translation in pictograms with the grammar.",
-#                         formatter_class=RawTextHelpFormatter)
-# parser.add_argument('--wn_file', type=str, required=True,
-#                     help="")
-# parser.add_argument('--no_transl', type=str, required=True,
-#                     help="")
-# parser.add_argument('--wsd', type=str, required=True,
-#                     help="")
-# parser.add_argument('--lexicon', type=str, required=True,
-#                     help="")
-# parser.add_argument('--corpus', type=str, required=True,
-#                     help="")
-# parser.add_argument('--out', type=str, required=True,
-#                     help="")
-# parser.set_defaults(func=main)
-# args = parser.parse_args()
-# args.func(args)
+parser = ArgumentParser(description="Generate the translation in pictograms with the grammar.",
+                        formatter_class=RawTextHelpFormatter)
+parser.add_argument('--wn_file', type=str, required=True,
+                    help="")
+parser.add_argument('--no_transl', type=str, required=True,
+                    help="")
+parser.add_argument('--wsd', type=str, required=True,
+                    help="")
+parser.add_argument('--lexicon', type=str, required=True,
+                    help="")
+parser.add_argument('--data', type=str, required=True,
+                    help="")
+parser.add_argument('--out', type=str, required=True,
+                    help="")
+parser.add_argument('--tags', type=str, required=True,
+                    help="")
+parser.set_defaults(func=main)
+args = parser.parse_args()
+args.func(args)
