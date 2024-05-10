@@ -5,8 +5,7 @@ Example of use: python analysis_results_PE.py --json_PE_dir '/outputPE/' --json_
 --lexicon 'lexique.csv'
 """
 
-from src.grammar import *
-from src.print_sentences_from_grammar import *
+from print_sentences_from_grammar import *
 import math
 import os
 from os import listdir
@@ -14,8 +13,6 @@ from os.path import isfile, join
 import evaluate
 import json
 from argparse import ArgumentParser, RawTextHelpFormatter
-
-from src.print_sentences_from_grammar import write_header_info_per_sentence
 
 bleu = evaluate.load("bleu")
 meteor = evaluate.load('meteor')
@@ -464,44 +461,3 @@ def analysis(json_folder, json_input, lexicon, corpus_name=None):
     # inter_annotator_aggrement(df, corpus_name)
     # create_html_with_correct_sentences(df, html_same)
     # create_html_with_differences(df, html_dif)
-
-
-# def main(args):
-#     names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
-#              "tufs", "valibel"]
-#     for i in names:
-#         print("Corpus name: ", i)
-#         analysis(
-#             args.json_PE_dir,
-#             args.json_init,
-#             args.lexicon,
-#             i)
-#         print("--------")
-
-def main():
-    names = ["cfpb", "cfpp", "clapi", "coralrom", "crfp", "fleuron", "frenchoralnarrative", "ofrom", "reunions", "tcof",
-             "tufs", "valibel"]
-    for i in names:
-        print("Corpus name: ", i)
-        analysis(
-            "/data/macairec/PhD/Grammaire/corpus/output_jsonPE/orfeo/json/",
-            "/data/macairec/PhD/Grammaire/corpus/json_PE/orfeo/sentences_orfeo.json",
-            "/data/macairec/PhD/Grammaire/dico/lexique.csv",
-            i)
-        print("--------")
-
-if __name__ == '__main__':
-    main()
-
-
-# parser = ArgumentParser(description="Post-edition analysis.",
-#                         formatter_class=RawTextHelpFormatter)
-# parser.add_argument('--json_PE_dir', type=str, required=True,
-#                     help="")
-# parser.add_argument('--json_init', type=str, required=True,
-#                     help="")
-# parser.add_argument('--lexicon', type=str, required=True,
-#                     help="")
-# parser.set_defaults(func=main)
-# args = parser.parse_args()
-# args.func(args)

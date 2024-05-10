@@ -272,30 +272,3 @@ def create_final_lexicon(file_arasaac, dicopicto_file, wn_file, outfile):
     final_lexique = pd.DataFrame({"id_picto": id_picto, "lemma": lemma, "synsets": synsets, "sense_keys": sense_keys})
     final_lexique.to_csv(outfile,
                          sep='\t', index=False)
-
-
-def lexicon():
-    create_final_lexicon(
-        "/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",
-        "/data/macairec/PhD/Grammaire/dico/dicoPicto_v3.csv",
-        "/data/macairec/PhD/Grammaire/dico/index.sense",
-        "/data/macairec/PhD/Grammaire/dico/lexique_v3.csv")
-
-
-if __name__ == '__main__':
-    lexicon()
-
-
-# parser = ArgumentParser(description="Generate the lexicon",
-#                         formatter_class=RawTextHelpFormatter)
-# parser.add_argument('--arasaac_file', type=str, required=True,
-#                     help="")
-# parser.add_argument('--dicoPicto', type=str, required=True,
-#                     help="")
-# parser.add_argument('--wn_file', type=str, required=True,
-#                     help="")
-# parser.add_argument('--out', type=str, required=True,
-#                     help="")
-# parser.set_defaults(func=lexicon)
-# args = parser.parse_args()
-# args.func(args)

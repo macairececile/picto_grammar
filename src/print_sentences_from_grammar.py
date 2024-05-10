@@ -3,9 +3,6 @@ Methods to show the translation in pictograms in a html file.
 """
 import pandas as pd
 
-from grammar import *
-
-
 def read_tags(tags):
     return pd.read_csv(tags, sep=",")
 
