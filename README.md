@@ -7,7 +7,7 @@ This is the scripts to run the formalism from the [LREC-Coling 2024](https://lre
 
 Our **PictoGrammar** model goal is to provide an [Arasaac](https://arasaac.org/) pictogram translation of a speech transcription (or text).
 <div align="center">
-  <img src="" width="80%">
+  <img src="img/pipeline.png" width="80%">
 </div>
 
 **PictoGrammar** uses a set of models : (1) [SpaCy](https://spacy.io/) to tokenize, lemmatize, and post-tag, (2) a [Named Entity Recognition (NER) model](https://huggingface.co/Jean-Baptiste/camembert-ner) based on CamemBERT, and (3) a Word Sense Disambiguation (WSD) model. 
@@ -21,11 +21,15 @@ Our **PictoGrammar** model goal is to provide an [Arasaac](https://arasaac.org/)
 
 ```bash
 git clone https://github.com/macairececile/picto_grammar.git
-cd picto_grammar
+cd picto_grammar/
 pip install -r requirements.txt
 git clone https://github.com/macairececile/nwsd.git
 export PYTHONPATH=$PYTHONPATH:/path_to_nwsd/nwsd/src
 ```  
+
+Then, download the WSD model via this link: https://cloud.univ-grenoble-alpes.fr/s/XECiw4gmEbGDprD.
+And decompress it in picto_grammar/data/
+
 ## 📉 Running PictoGrammar
 
 The repository is organized in 4 folders :
