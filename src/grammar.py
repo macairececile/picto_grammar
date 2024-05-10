@@ -1219,7 +1219,7 @@ def main():
     lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique.csv")
     lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
     sentences, data_init = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/eval_s2p.tsv")
+        "/data/macairec/PhD/Grammaire/corpus/csv/test_grammar_v2.tsv")
     words_not_in_dico_picto = []
     sentences_proc = []
     s_rules = [

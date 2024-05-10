@@ -104,7 +104,7 @@ def get_ref_pictos_and_tokens(data_asr, data_refs):
             corpus_name.append(get_corpus_name(clip))
             ref_text.append("to_delete")
         else:
-            tokens_refs.append(row_ref['tokens'].values[0])
+            tokens_refs.append(row_ref['tokens'].values[0]) # tokens or tgt
             pictos_refs.append(row_ref['pictos'].values[0])
             corpus_name.append(get_corpus_name(clip))
             ref_text.append(row_ref["text"].values[0])
@@ -164,11 +164,11 @@ def compute_scores(data_asr, corpus_name=None):
         references.append(row["ref_tokens"])
         references_bleu.append(row["ref_tokens"])
         predictions.append(row["tokens"])
-        # try:
-        #     print("Clips : ", row["clips"])
-        #     print("BLEU SCORE SENTENCE : ", bleu.compute(predictions=[row["tokens"]], references=[row["ref_tokens"]])["bleu"] * 100)
-        # except:
-        #     print("")
+        try:
+            print("Clips : ", row["clips"])
+            print("BLEU SCORE SENTENCE : ", bleu.compute(predictions=[row["tokens"]], references=[row["ref_tokens"]])["bleu"] * 100)
+        except:
+            print("")
     results_wer = wer.compute(predictions=predictions, references=references)
     wer_score = round(results_wer, 3) * 100
     results_bleu = bleu.compute(predictions=predictions, references=references_bleu)
@@ -346,8 +346,9 @@ def write_html_file(df, html_file):
 #         evaluate_by_wer(args.file_asr, args.file_asr_grammar, args.file_ref)
 
 def eval():
-    # evaluate("/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_large_grammar.csv", "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
-    evaluate("/data/macairec/PhD/Grammaire/End2End/grammar_out/test_commonvoice_seamless_grammar.txt", "/data/macairec/PhD/Grammaire/S2P_eval_MQM/test_commonvoice_s2p.csv")
+    evaluate("/data/macairec/PhD/Grammaire/exps_speech/whisper/out_grammar/whisper_results_large_grammar.csv", "/data/macairec/PhD/Grammaire/corpus/output_grammar/out_with_translation/corpus_all_grammar_pictos.csv")
+    # evaluate("/data/macairec/PhD/Grammaire/End2End/grammar_out/test_commonvoice_seamless_grammar.txt", "/data/macairec/PhD/Grammaire/S2P_eval_MQM/test_commonvoice_s2p.csv")
+    # evaluate("/data/macairec/PhD/Grammaire/End2End/grammar_out/propicto_eval_whisper_grammar.txt", "/data/macairec/PhD/Grammaire/End2End/propicto_eval.csv")
 
 if __name__ == '__main__':
     eval()

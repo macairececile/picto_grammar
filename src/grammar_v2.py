@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore")
 # -------------------------------- #
 phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'bah', 'bam', 'bang', 'bé', 'bè', 'bêêê',
                          'beurk',
-                         'ben', 'beh', "bref",
+                         'ben', 'beh', "bref", "brrrrr", "brrrrrr",
                          'bing', 'boum', 'broum', 'cataclop', 'clap clap', 'coa coa', 'cocorico', 'coin coin',
                          'crac',
                          'croa croa', 'cuicui', 'ding', 'ding deng dong', 'ding dong', 'dring', 'hé', 'eh', 'hé ben',
@@ -35,7 +35,8 @@ phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'ba
                          'hi han', 'hip hip hip hourra', 'hop', 'houla', 'hourra', 'hum', 'mêêê', 'meuh', 'miam',
                          'miam miam', 'mh', 'mm',
                          'miaou',
-                         'oh', 'oh là là', 'oh là', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan', 'patatras',
+                         'oh', 'oh là là', 'oh là', 'ohé', 'O.K.', 'ouah', 'ouah ouah', 'ouf', 'ouh', 'paf', 'pan',
+                         'patatras',
                          'pchhh', 'pchit', 'pf',
                          'pff', 'pif-paf', 'pin pon', 'pioupiou', 'plouf', 'pof', 'pouet', 'pouet pouet', 'pouf',
                          'psst', 'rah', 'ron ron',
@@ -46,7 +47,7 @@ phatiques_onomatopees = ['ah', 'aïe', 'areu', 'atchoum', 'badaboum', 'baf', 'ba
 single_letters = ['b', 'c', 'd', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
                   'e']
 
-special_characters = ['<', '>', '/', ',', '*', '"', ',', '.', '…', '!', '?', ':', ';', '#']
+special_characters = ['<', '>', '/', ',', '*', '"', ',', '.', '…', '!', '?', ':', ';', '#', "²", "]", "»", "-~", "~", "«", "(", ")"]
 
 futur_anterieur = ["aurai", "auras", "aura", 'aurons', "aurez", "auront", "serai", "seras", "sera", "serons", "serez",
                    "seront"]
@@ -58,7 +59,10 @@ pronouns_to_replace = [["l'", "le"], ["j'", "je"], ["c'", "ceci"], ["ça", "cela
                        ["m'", "me"], ["une", "une"], ["cette", "la"], ['te', 'toi'], ["ce", "celui"], ["qu'", "que"],
                        ["d'", "de"]]
 
-words_no_translations = ["puis", "sinon", "voilà", "enfin", "donc", "complètement", "énormément", "chez", "vraiment"]
+words_no_translations = ["puis", "sinon", "voilà", "enfin", "donc", "complètement", "énormément", "chez", "vraiment",
+                         "ainsi", "absolument", "assez", "essentiellement", "peut-être", "certainement",
+                         "certes", "apparemment", "dont", "déjà", "envers", "façon", "sûrement", "rarement",
+                         "surtout", "éventuellement", "éventuel", "alors"]
 
 words_prefix = [
     ['dés', [24753]],
@@ -107,12 +111,6 @@ def read_lexique(lexicon):
     return df
 
 
-def read_lexicon_from_wolf(file_wolf):
-    df = pd.read_csv(file_wolf, sep='\t')
-    df["lemma"] = df['lemma'].apply(lambda a: str(a).lower())
-    return df
-
-
 def read_sentences(csv_file):
     """
         Get the transcriptions to apply to grammar.
@@ -126,10 +124,9 @@ def read_sentences(csv_file):
         The list of sentences.
     """
     df = pd.read_csv(csv_file, sep='\t')
-    print(len(df))
     # df2 = df.dropna()
     df2 = df.drop_duplicates()
-    return [a.lower() for a in df2["text"].tolist()][13000:], df2[13000:]
+    return [a.lower() for a in df2["text"].tolist()], df2
 
 
 def get_picto_lemma(lemma, lexicon):
@@ -315,11 +312,16 @@ def process_text(text):
         -------
         The cleaned text.
     """
+    # remove ce qui est entre parenthèses :
+    text = re.sub(r'\([^)]*\)', '', text)
     pattern = r"/([^/]+)/"
     matches = re.findall(pattern, text)
     for match in matches:
         text = text.replace("/" + match + "/", match.split(",")[0])
-    text = text.replace("ouais", "oui").replace("’", "'").replace("plait", "plaît").replace("là bas", "là-bas")
+    text = text.replace("aujourd' hui", "aujourd'hui").replace("quelqu' un", "quelqu'un").replace("c' est-à-dire",
+                                                                                                  "c'est-à-dire")
+    text = text.replace("ouais", "oui").replace("’", "'").replace("plait", "plaît").replace("là bas", "là-bas").replace(
+        "qu' ", "que ")
     for c in special_characters:
         if c in text:
             text = text.replace(c, '')
@@ -327,6 +329,26 @@ def process_text(text):
         return None
     else:
         return ' '.join(text.split())
+
+
+def remove_phatiques(text, p):
+    while ' ' + p + ' ' in text:
+        text = text.replace(' ' + p + ' ', ' ').strip()
+    return text
+
+
+def remove_pathiques_begin(text, p):
+    if text.startswith(p + ' '):
+        return text[len(p):]
+    else:
+        return text
+
+
+def remove_phatiques_end(text, p):
+    if text.endswith(' ' + p):
+        return text[:-len(p)]
+    else:
+        return text
 
 
 def remove_useless_words(text, no_translation_words):
@@ -342,13 +364,13 @@ def remove_useless_words(text, no_translation_words):
         -------
         The cleaned text.
     """
+    text_to_proc = text
     for p in phatiques_onomatopees:
-        text = text.replace(' ' + p + ' ', ' ')
-        if text.startswith(p + ' '):
-            text = text[len(p):]
-        if text.endswith(' ' + p):
-            text = text[:-len(p)]
-    text_no_pathiques_onom = ' '.join(text.split())
+        text_1 = remove_phatiques(text_to_proc, p)
+        text_2 = remove_pathiques_begin(text_1, p)
+        text_3 = remove_phatiques_end(text_2, p)
+        text_to_proc = text_3
+    text_no_pathiques_onom = ' '.join(text_to_proc.split())
     # handle words not to translate
     for w in no_translation_words:
         text_no_pathiques_onom = text_no_pathiques_onom.replace(w, '')
@@ -360,6 +382,8 @@ def remove_useless_words(text, no_translation_words):
         if final_text.endswith(' ' + s):
             final_text = final_text[:-1]
         final_text = ' '.join(final_text.split())
+        if final_text == s:
+            final_text = ""
     return final_text
 
 
@@ -409,6 +433,12 @@ def process_with_spacy(text, spacy_model):
 # ------------------- #
 # ------ RULES ------ #
 # ------------------- #
+def handle_anonym(text_spacy):
+    for w in text_spacy:
+        if w.lemma == ["nnaammee"]:
+            w.picto = [36935]
+
+
 def handle_dash(text_spacy, spacy_model):
     """
         Handle dash for specific multi-word-expressions.
@@ -1108,19 +1138,6 @@ def remove_consecutive_picto(text_spacy):
                 text_spacy[info[0]].to_picto = False
 
 
-def use_lexicon_wolf(text_spacy, wolf_data):
-    for w in text_spacy:
-        if w.to_picto and w.picto == [404]:
-            if w.prefix:
-                possible_pictos = wolf_data.loc[wolf_data['lemma'] == w.lemma[1]]["id_picto"].tolist()
-            else:
-                possible_pictos = wolf_data.loc[wolf_data['lemma'] == w.lemma[0]]["id_picto"].tolist()
-            possible_pictos_2 = possible_pictos + wolf_data.loc[wolf_data['lemma'] == w.token]["id_picto"].tolist()
-            if possible_pictos_2:
-                w.picto = possible_pictos_2
-                w.wsd = "WOLF"
-
-
 # ------------------- #
 # ------ INFOS ------ #
 # ------------------- #
@@ -1149,7 +1166,7 @@ def get_words_no_picto(texts_grammar):
 # -------- APPLY RULES - GRAMMAR -------- #
 # --------------------------------------- #
 def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner_model, wsd_model, sentences_proc,
-            lexicon, lexicon_wolf):
+            lexicon):
     """
         Apply the rules on the text.
 
@@ -1173,8 +1190,10 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
     sentences_proc.append(s_process)
     if s_process is not None:
         s_new = remove_useless_words(s_process, no_transl)
+        # print(s_new)
         if len(s_new) > 0:
             s_spacy = process_with_spacy(s_new, spacy_model)
+            handle_anonym(s_spacy)
             handle_dash(s_spacy, spacy_model)
             handle_intj(s_spacy)
             imperative_sentence(s_spacy)
@@ -1193,7 +1212,6 @@ def grammar(wn_data, no_transl, sentence, spacy_model, words_not_in_lexicon, ner
             adverbial_group(s_spacy)
             mapping_text_to_picto(s_spacy, lexicon)
             apply_wsd(wsd_model, s_spacy, lexicon, wn_data)
-            # use_lexicon_wolf(s_spacy, lexicon_wolf)
             remove_consecutive_picto(s_spacy)
             # print(s_new)
             # print("-----------------")
@@ -1260,27 +1278,24 @@ def main():
     ner_model = load_ner_model()
     wsd_model = load_wsd_model("/data/macairec/PhD/pictodemo/model_wsd/")
     lexicon = read_lexique("/data/macairec/PhD/Grammaire/dico/lexique_v2.csv")
-    # lexicon_wolf = read_lexicon_from_wolf("/data/macairec/PhD/Grammaire/dico/wolf/wolf_merge_with_lexicon_hypernyms.csv")
     sentences, data_init = read_sentences(
-        "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/corpus_tcof.csv")
+        "/data/macairec/PhD/Grammaire/corpus/corpus_v2/tedx/train_2.tsv")
     words_not_in_dico_picto = []
     sentences_proc = []
     s_rules = []
-    for s in tqdm(sentences, desc="description", unit="iteration"):
+    for s in tqdm(sentences, desc="grammar", unit="iteration"):
         a = grammar(wn_data, no_transl, s, spacy_model, words_not_in_dico_picto, ner_model, wsd_model, sentences_proc,
-                lexicon, "")
+                    lexicon)
         s_rules.append(a)
-
-    # save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
-    #                          "/data/macairec/PhD/Grammaire/corpus/csv/orfeo/tcof_grammar_v2_2.csv")
-    print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
-    # print_pictograms(sentences, s_rules, "tcof_grammar_v2_0_7000_10000.html",
-    #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
-    # print_pictograms(sentences[100:200], s_rules[100:200], "tcof_grammar_v2_10500_10600.html",
-    #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
-    # print_pictograms(sentences, s_rules, "test_grammar_v2.html",
+    save_data_grammar_to_csv(data_init, sentences, s_rules, sentences_proc, lexicon,
+                             "/data/macairec/PhD/Grammaire/corpus/corpus_v2/tedx/train_2_with_pictos.tsv")
+    # print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
+    # print_pictograms(sentences, s_rules, "polylexical_grammar.html",
     #                  "/data/macairec/PhD/Grammaire/dico/tags.csv")
 
+
+if __name__ == '__main__':
+    main()
 
 # def main(args):
 #     wn_data = parse_wn31_file(args.wn_file)  # "index.sense"
@@ -1300,9 +1315,6 @@ def main():
 #     print("\nWords not in the lexicon: ", list(set(words_not_in_dico_picto)))
 #     print_pictograms(sentences, s_rules, "out.html")
 
-
-if __name__ == '__main__':
-    main()
 
 # parser = ArgumentParser(description="Generate the translation in pictograms with the grammar.",
 #                         formatter_class=RawTextHelpFormatter)

@@ -69,7 +69,7 @@ def write_header_info_per_sentence(html_file, utt_name):
     """
     html_file.write("<div class=\"container-fluid\">")
     html_file.write("<div class=\"row\">")
-    html_file.write("<div class=\"col-12\"><div class=\"p-3\">")
+    html_file.write("<div class=\"col-12\"><div class=\"p-2\">")
     html_file.write(utt_name)
     html_file.write("</div></div></div></div>")
 
@@ -93,18 +93,18 @@ def write_translations_per_sentence(html_file, translations, tags):
                     info_wsd = id_picto.wsd
                 if id_picto.picto == [404]:
                     html_file.write(
-                        "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
+                        "<span style=\"color: #000080;\"><figure class=\"figure\">"
                         "<img src=\"/data/macairec/Cloud/PROPICTO_RESSOURCES/ARASAAC/ARASAAC_Pictos_All/" + str(
-                            id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                            id_picto.picto[0]) + ".png" + "\"alt=\"\" width=\"110\" height=\"110\" />"
                                                           "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
                             info_wsd) + "<br/>Id picto : " + str(
                             id_picto.picto) + "</figcaption></figure>")
                 else:
                     html_file.write(
-                        "<span style=\"color: #000080;\"><strong><figure class=\"figure\">"
+                        "<span style=\"color: #000080;\"><figure class=\"figure\">"
                         "<img src=\"https://static.arasaac.org/pictograms/" + str(id_picto.picto[0]) + '/' + str(
-                            id_picto.picto[0]) + "_2500.png" + "\"alt=\"\" width=\"150\" height=\"150\" />"
+                            id_picto.picto[0]) + "_2500.png" + "\"alt=\"\" width=\"110\" height=\"110\" />"
                                                                "<figcaption class=\"figure-caption text-center\">Token : " + id_picto.token + "<br/>Lemma : " + str(
                             id_picto.lemma) + "<br/>Pos : " + id_picto.pos + "<br/>WSD : " + str(
                             info_wsd) + "<br/>Id picto : " + str(

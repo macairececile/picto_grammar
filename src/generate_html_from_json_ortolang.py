@@ -61,4 +61,4 @@ def generate_html_file_from_ortolang(json_file):
 
 
 if __name__ == '__main__':
-    generate_html_file_from_ortolang("/data/macairec/PhD/Grammaire/corpus/ortolang/propicto-orfeo/valibel/corpus_valibel.json")
+    generate_html_file_from_ortolang("/home/getalp/macairec/Bureau/ex.json")

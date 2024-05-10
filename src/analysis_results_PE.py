@@ -22,6 +22,7 @@ meteor = evaluate.load('meteor')
 wer = evaluate.load('wer')
 ter = evaluate.load('ter')
 from jiwer import compute_measures
+from sacrebleu.metrics import lib_ter
 
 
 def get_json_from_post_edit(folder):
@@ -186,7 +187,7 @@ def term_ter(dataframe, corpus_name):
         references = []
         predictions = []
         username = by_corpus.loc[user[0]]["user"]
-        subs, delet, inser = 0, 0, 0
+        subs, delet, inser, shift = 0, 0, 0, 0
         for i in user:
             references.append([' '.join(by_corpus.loc[i]["pictos_grammar_tokens"])])
             predictions.append(' '.join(by_corpus.loc[i]["pictos_annot_token"]))
@@ -196,12 +197,14 @@ def term_ter(dataframe, corpus_name):
             subs += measures["substitutions"]
             delet += measures["deletions"]
             inser += measures["insertions"]
+            shift += lib_ter.translation_edit_rate2(prediction[0].split(" "), reference[0].split(" "))
         if username in edits.keys():
             edits[username][0] += subs
             edits[username][1] += delet
             edits[username][2] += inser
+            edits[username][3] += shift
         else:
-            edits[username] = [subs, delet, inser]
+            edits[username] = [subs, delet, inser, shift]
         ter_scores[username] = results["score"]
     print(edits)
     return ter_scores

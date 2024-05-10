@@ -277,9 +277,9 @@ def create_final_lexicon(file_arasaac, dicopicto_file, wn_file, outfile):
 def lexicon():
     create_final_lexicon(
         "/data/macairec/PhD/Grammaire/dico/arasaac.fre30bis.csv",
-        "/data/macairec/PhD/Grammaire/dico/dicoPicto_v2.csv",
+        "/data/macairec/PhD/Grammaire/dico/dicoPicto_v3.csv",
         "/data/macairec/PhD/Grammaire/dico/index.sense",
-        "/data/macairec/PhD/Grammaire/dico/lexique_v2.csv")
+        "/data/macairec/PhD/Grammaire/dico/lexique_v3.csv")
 
 
 if __name__ == '__main__':
