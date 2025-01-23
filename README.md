@@ -3,6 +3,12 @@ This is the scripts to run the formalism from the [LREC-Coling 2024](https://lre
 
 ⭐ Do not hesitate to test it and report any bugs, feedback, or results.
 
+## ⭐ NEW ⭐
+
+A new version of the grammar was developed, along with a lexicon, with new lemmas added to the ARASAAC lexicon.
+To run the new version, use the `grammar_v2.py` script with the `data/lexicon-v3.csv` as the lexicon. 
+The updated dataset (propicto-orfeo) is available on HuggingFace: https://huggingface.co/Propicto
+
 ## 🔍 Overview
 
 Our **PictoGrammar** model aims to provide an [Arasaac](https://arasaac.org/) pictogram translation of a speech transcription (or text).
@@ -26,7 +32,7 @@ pip install -r requirements.txt
 git clone https://github.com/macairececile/nwsd.git
 export PYTHONPATH=$PYTHONPATH:/path_to_nwsd/nwsd/src
 ```  
-
+Be sure to export the PYTHONPATH to be able to run the WSD model.
 Then, download the WSD model via this link: https://huggingface.co/Propicto/wsd-camembert-base-semcor-wngt-fr and decompress it in picto_grammar/data/ folder.
 
 ## 📉 Running PictoGrammar
