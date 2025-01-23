@@ -63,7 +63,7 @@ The repository is organized into 4 folders:
 ### Use the grammar
 
 ```bash
-python src/grammar.py --wn_file "data/dico/index.sense" --no_transl "data/dico/no_translation.csv" --wsd "data/wsd_model/" --lexicon "data/dico/lexique.csv" --data "examples/input.csv" --out "examples/out.csv" --tags "data/dico/tags.csv"
+python src/grammar.py --wn_file "data/dico/index.sense" --no_transl "data/dico/no_translation.csv" --wsd "data/wsd_model/" --lexicon "data/dico/lexicon.csv" --data "examples/input.csv" --out "examples/out.csv" --tags "data/dico/tags.csv"
 ```
 An **out.html** file will be generated to display the output sequence.
 
