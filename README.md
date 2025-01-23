@@ -1,23 +1,23 @@
 # A Multimodal French Corpus of Aligned Speech, Text, and Pictogram Sequences for Speech-to-Pictogram Machine Translation
 This is the scripts to run the formalism from the [LREC-Coling 2024](https://lrec-coling-2024.org/) paper [**"A Multimodal French Corpus of Aligned Speech, Text, and Pictogram Sequences for Speech-to-Pictogram Machine Translation"**](https://hal.science/hal-04534234).
 
-⭐ Do not hesitate to test it and report any bugs, feedbacks, results.
+⭐ Do not hesitate to test it and report any bugs, feedback, or results.
 
 ## 🔍 Overview
 
-Our **PictoGrammar** model goal is to provide an [Arasaac](https://arasaac.org/) pictogram translation of a speech transcription (or text).
+Our **PictoGrammar** model aims to provide an [Arasaac](https://arasaac.org/) pictogram translation of a speech transcription (or text).
 <div align="center">
   <img src="img/pipeline.png" width="40%">
 </div>
 
-**PictoGrammar** uses a set of models : (1) [SpaCy](https://spacy.io/) to tokenize, lemmatize, and post-tag, (2) a [Named Entity Recognition (NER) model](https://huggingface.co/Jean-Baptiste/camembert-ner) based on CamemBERT, and (3) a Word Sense Disambiguation (WSD) model. 
+**PictoGrammar** uses a set of models: (1) [SpaCy](https://spacy.io/) to tokenize, lemmatize, and post-tag, (2) a [Named Entity Recognition (NER) model](https://huggingface.co/Jean-Baptiste/camembert-ner) based on CamemBERT, and (3) a Word Sense Disambiguation (WSD) model. 
 
 ## ⚙️ Requirements and Installation
  - Python >= 3.9
  - PyTorch >= 1.10
  - Transformers >= 4.26
  - SpaCy french model -- *fr_dep_news_trf*
-- WSD model -- https://github.com/macairececile/nwsd
+ - WSD library -- https://github.com/macairececile/nwsd
 
 ```bash
 git clone https://github.com/macairececile/picto_grammar.git
