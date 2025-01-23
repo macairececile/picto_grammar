@@ -5,9 +5,9 @@ This is the scripts to run the formalism from the [LREC-Coling 2024](https://lre
 
 ## ⭐ NEW ⭐
 
-A new version of the grammar was developed, along with a lexicon, with new lemmas added to the ARASAAC lexicon.
-To run the new version, use the `grammar_v2.py` script with the `data/lexicon-v3.csv` as the lexicon. 
-The updated dataset (propicto-orfeo) is available on HuggingFace: https://huggingface.co/Propicto
+A new version of the grammar was developed, along with a lexicon, with new lemmas added to the ARASAAC lexicon. <br/>
+To run the new version, use the `grammar-v2.py` script with the `data/lexicon-v3.csv` as the lexicon. <br/>
+The updated dataset (propicto-orfeo) is available on HuggingFace: https://huggingface.co/Propicto and in **data/output_data/v2** folder. <br/>
 
 ## 🔍 Overview
 
