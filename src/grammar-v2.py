@@ -1,8 +1,6 @@
 """
 Script to apply the grammar and retrieve the sequence of pictograms.
 
-Example of use: python grammar.py --wn_file 'index.sense' --no_transl 'no_translation.csv' --wsd '/model_wsd/'
---lexicon 'lexique.csv' --corpus 'corpus.csv' --out 'corpus_grammar.csv'
 """
 
 from print_sentences_from_grammar import *
@@ -1279,9 +1277,11 @@ parser.add_argument('--wsd', type=str, required=True,
                     help="")
 parser.add_argument('--lexicon', type=str, required=True,
                     help="")
-parser.add_argument('--corpus', type=str, required=True,
+parser.add_argument('--data', type=str, required=True,
                     help="")
 parser.add_argument('--out', type=str, required=True,
+                    help="")
+parser.add_argument('--tags', type=str, required=True,
                     help="")
 parser.set_defaults(func=main)
 args = parser.parse_args()
